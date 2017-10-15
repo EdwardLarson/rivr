@@ -1,8 +1,9 @@
 // Primitive types:
+// bool = booleans (true or false)
 // int = integers
 // rat = rationals (double-precision floating point numbers)
 // str = immutable strings (characters are not a separate type, being instead strings of length 1)
-// f() = function, with argument typed inside parentheses and returns after an arrow (e.g. f(int)->int or f()->(int, int) )
+// f() = function, with argument types inside parentheses and returns after an arrow (e.g. f(int)->int or f()->(int, int) )
 // {} = object type, with one or more classes inside the brackets; objects are maps, mapping string keys to primitive values
 
 // Definition of an atom. Atoms are immutable.
@@ -10,18 +11,20 @@ myvar :: 5
 
 // Definition of a function atom. Most functions are atoms.
 // Because of this, the same name cannot be used for functions with different signatures; they are different types
+// This may change in the future, unless I can come up with cases where the proper function to call would be ambiguous to the compiler
 foo :: f(int z, str word) -> int:
     // size returns the number of bytes a primitive takes up
+	// for a string, this is its length
     return z * size(word)
     
 // Declaration of a variable, implicitly typed as a string
 globalVar := "I am a string!"
 
 // Declaration of a variable, implicitly typed as a function
-globalFunc := f(int x, int y)-> (int, int): return (x*y), (x+y)
+globalFunc := f(int x, int y)->(int, int): return (x*y), (x+y)
 
 // Reassignment of a variable
-globalFunc = f(int x, int y)-> (int, int): return (x/y), (x-y)
+globalFunc = f(int x, int y)->(int, int): return (x/y), (x-y)
 
 // Declaration of a variable to an explicit type with no assigned values
 globalVar2 := str
@@ -29,41 +32,128 @@ globalVar2 := str
 // Declaration of a function variable without an assigned values
 globalFunc2 := f(int x)->int
 
-class MyClass:
+// Definition of a class
+{MyClass}:
+	// Declaration of attributes of the class
+	// Attributes are private by default
     x := int
     y := int
+	
+	// Use of a compiler flag (using '@') to define a public atom
+	// Compiler flags are stacked up and applied to the next expression, declaration, etc.
     @public
     n :: 10
     
-    @public
+	// Definition of getter and setter methods
+	// The '...' in the compiler flag means that the stack of compiler flags are not cleared after being applied
+	// Allows one flag to apply to multiple expressions
+    @public...
     get_x :: 
-        f()->int: return .x
-    @public
+        f()->int: return .x // .name is how attributes of the current object are accessed
     get_y :: 
         f()->int: return .y
+	set_x ::
+		f(int x): .x = x
+	set_y ::
+		f(int y): .y = y
+	
+	@\... // Ending a continued flag
         
+	// Definition of the class constructor
     @public
-    MyClass ::
+    init ::
         f(int x, int y):
             .x = x
             .y = y
     
-
-class MyCompositeClass is {MyClass, Component1, Component2}:
+// Definition of a composite class
+class {MyCompositeClass} is {MyClass, PrettyPrintable, SomeComponent}:
     z := int
     
+	// Class constructor which calls component's constructors
     @public
-    MyCompositeClass ::
+    init ::
+		f(int z):
+			.MyClass(z * 2, z / 2)
+			.PrettyPrintable("My values are: ", ", ")
+			.SomeComponent(z, true, true)
     
     
     
     
+// Declaration of an object
+myObject := {MyCompositeClass}(10)
+
+// The following are all valid:
+
+print(myObject.get_x()) // .get_x is part of the MyClass component
+print(myObject.n) // again, n is part of the MyClass component
+myObject.pprint() // .pprint is part of the PrettyPrintable component
+print(myObject.arbitraryVar) // assuming arbitraryVar is a public attribute of SomeComponent
+    
+bar :: f({MyClass} mc, int a):
+	mc.set_x(a)
+	mc.set_y(a)
+	
+// myObject is an instance of MyClass and can therefore be passed to functions which expect an argument of MyClass
+bar(myObject, 2)
     
     
+// The following is NOT valid
+// Though MyCompositeClass is also a MyClass, the compiler will only look for an init function at the level of MyCompositeClass
+// MyCompositeClass has no constructor defined for 2 int arguments so this will not compile
+// Constructors are treated differently from other methods in this regard
+myInvalidObject := {MyCompositeClass}(4, 5)
+
+// Definition of a composite class which overrides some of its components' data
+class {MyCompositeClassButDifferent} is {MyClass, PrettyPrintable, SomeComponent}:
+    z := int
     
-    
-    
-    
-    
-    
-    
+	// Class constructor which calls component's constructors
+    @public
+    init ::
+		f(int z):
+			.MyClass(z * 2, z / 2)
+			.PrettyPrintable("My values are: ", ", ")
+			.SomeComponent(z, true, true)
+			
+	// Compiler flag needed to override a component's atom
+	@public @override
+	n :: 15 // redefines the n atom; this data will be returned if n i s requested from an instance of MyCompositeClass, even if in the current context it is being 'viewed' as MyClass
+
+// Declaration of an actor    
+myActor := actor(globalFunc, 10, 10)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
