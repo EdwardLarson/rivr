@@ -26,51 +26,12 @@ typedef struct Operation_{
 
 Operation read_op(byte* bytes, PCType pc);
 
-typedef enum OPCODE_{
-/* 0*/	ABS,
-/* 1*/	ADD,
-/* 2*/	AND,
-/* 3*/	BRANCH,
-/* 4*/	BITNOT,
-/* 5*/	CALL,
-/* 6*/	DEV,
-/* 7*/	DIV,
-/* 8*/	EQ,
-/* 9*/	GT,
-/*10*/	HALT,
-/*11*/	INPUT,
-/*12*/	JUMP,
-/*13*/	LSH,
-/*14*/	LT,
-/*15*/	M_ALLOC,
-/*16*/	M_FREE,
-/*17*/	M_LOAD,
-/*18*/	M_STORE,
-/*19*/	MOD,
-/*20*/	MOVE,
-/*21*/	MUL,
-/*22*/	NOT,
-/*23*/	OR,
-/*24*/	POPFRAME,
-/*25*/	PUSHFRAME,
-/*26*/	POW,
-/*27*/	PRINT,
-/*28*/	RETURN,
-/*29*/	RSH,
-/*30*/	SAVEFRAME,
-/*31*/	SUB,
-		TH_NEW,
-		TH_JOIN,
-		TH_KILL,
-/*32*/	XOR
-} OPCODE;
 
-
-inline OPCODE get_opcode(Operation op);
+inline byte get_opcode(Operation op);
 
 inline byte get_subop(Operation op);
 
-inline Operation encode_operation(OPCODE opcode, byte subop);
+inline Operation encode_operation(byte opcode, byte subop);
 
 // data is stored as a union
 // size is 64 bits (8 bytes)

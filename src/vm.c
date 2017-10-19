@@ -35,9 +35,9 @@ Operation read_op(byte* bytes, PCType pc){
 	return cast_union.op;
 }
 
-OPCODE get_opcode(Operation op){
+byte get_opcode(Operation op){
 	// first 6 bits
-	return (OPCODE) (op.bytes[0] & 0xFC);
+	return (op.bytes[0] & 0xFC);
 }
 
 byte get_subop(Operation op){
@@ -45,7 +45,7 @@ byte get_subop(Operation op){
 	return ((op.bytes[0] & 0x03) << 6) & (op.bytes[1] & 0xC0);
 }
 
-Operation encode_operation(OPCODE opcode, byte subop){
+Operation encode_operation(byte opcode, byte subop){
 	Operation op;
 	op.bytes[0] = opcode & 0xFC;
 	op.bytes[0] &= 0x03 & (subop >> 6);
@@ -171,7 +171,7 @@ Data* access_register(byte r, Thread* th){
 
 void run_thread(Thread* th){
 	Operation op;
-	OPCODE opcode;
+	byte opcode;
 	byte subop;
 	
 	while ((th->status > 0) && (th->pc < th->prog_len)){
