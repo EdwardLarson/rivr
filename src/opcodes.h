@@ -41,30 +41,83 @@
 #define	I_TH_KILL		0x22
 #define	I_XOR			0x23
 
-// vm operations have a signature of:
-// operation_OPCODE(byte subop, byte* argstart, PCType* pc, PCType prog_len)
+#define SO_NUMBER		0x00
+#define SO_RATIONAL		0x01
+#define SO_REGISTER		0x02
+#define SO_CONSTANT		0x00
+#define SO_IF		0x04
+#define SO_IFNOT		0x00
 
-Data operation_ABS(byte subop, byte* prog, PCType* pc, PCType prog_len){
+// vm operations have a signature of:
+// operation_OPCODE(byte subop, byte* argstart, Thread* th, PCType* pc, PCType prog_len)
+
+Data operation_ABS(byte subop, byte* prog, Thread* th, PCType* pc, PCType prog_len){
+	Data result;
+	
 	switch(subop){
-		case 0: // one Number in a register
-		// -
+		case SO_NUMBER | SO_REGISTER: // one Number in a register
+		
+		long int tmp = access_register(prog[pc], th)->n;
+		result.n = tmp >= 0? tmp : tmp * -1;
 		break;
 		
-		case 1: // one Rational in a register
-		// -
+		case SO_RATIONAL | SO_REGISTER: // one Rational in a register
+		
+		double tmp = access_register(prog[pc], th)->d;
+		result.d = tmp >= 0? tmp : tmp * -1;
+		
 		break;
 		
-		case 2: // one Number constant in the prog
-		// -
+		case SO_NUMBER | SO_CONSTANT: // one Number constant in the prog
+		
+		long int tmp = access_constant(prog, pc, prog_len);
+		result.n = tmp >= 0? tmp : tmp * -1;
+		
 		break;
 		
-		case 3: // one Rational constant in the prog
-		// -
+		case SO_RATIONAL | SO_CONSTANT: // one Rational constant in the prog
+		
+		double tmp = access_constant(prog, pc, prog_len);
+		result.d = tmp >= 0? tmp : tmp * -1;
+		
 		break;
 		
 		default:
-		Data data;
-		return data;
+		break;
 	}
+	
+	return result;
 }
 
+Data operation_ADD(byte subop, byte* prog, Thread* th, PCType* pc, PCType prog_len){
+	Data result;
+	
+	switch(subop){
+		case SO_NUMBER | SO_REGISTER:
+			result.n = 
+				access_register(prog[pc], th)->n + 
+				access_register(prog[pc + 1], th)->n;
+			
+			break;
+		case SO_NUMBER | SO_CONSTANT:
+			result.n = 
+				access_constant(prog, pc, prog_len) +
+				access_constant(prog, pc + sizeof(Data), prog_len);
+				
+			break;
+		case SO_RATIONAL | SO_REGISTER:
+			result.d = 
+				access_register(prog[pc], th)->d + 
+				access_register(prog[pc + 1], th)->d;
+			break;
+		case SO_RATIONAL | SO_CONSTANT:
+			result.d = 
+				access_constant(prog, pc, prog_len) +
+				access_constant(prog, pc + sizeof(Data), prog_len);
+			break;
+		default:
+			break;
+	}
+	
+	return result;
+}

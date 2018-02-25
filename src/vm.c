@@ -169,6 +169,23 @@ Data* access_register(byte r, Thread* th){
 	}
 }
 
+Data access_constant(const byte* prog, PCType pc, PCType prog_len){
+	Data data;
+	if (pc + sizeof(Data) >= prog_len){
+		// error
+	}else{
+		union {Data data, byte bytes[sizeof(Data)} data_union;
+		int i;
+		for (i = 0; i < sizeof(Data); i++){
+			data_union.bytes[i] = prog[pc + i];
+		}
+		
+		data = data_union.data;
+	}
+	
+	return data;
+}
+
 void run_thread(Thread* th){
 	Operation op;
 	byte opcode;
@@ -204,3 +221,5 @@ void run_thread(Thread* th){
 	
 	
 }
+
+

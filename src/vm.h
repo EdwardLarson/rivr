@@ -1,5 +1,6 @@
 #include <malloc.h>
 
+#include "rv_strings.h"
 
 #define FRAME_STACK_SIZE 1024
 
@@ -104,6 +105,7 @@ typedef struct Thread_ {
 void init_Thread(Thread* th, Register_File* rf, byte* prog, PCType prog_len, PCType pc_start);
 
 Data* access_register(byte r, Thread* rf);
+Data access_constant(const byte* prog, PCType pc, PCType prog_len);
 
 // function which performs actual execution of code
 
@@ -125,9 +127,10 @@ void run_thread(Thread* th);
 typedef struct Function_ {
 	PCType pc;
 	
-	// problem with this is, it's big. Each frame is 1kb of memory. That's way too big for an atomic type
 	Register_Frame state;
 	
 	
 	
 } Function;
+
+
