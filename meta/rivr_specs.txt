@@ -3,41 +3,36 @@
 // int = integers
 // rat = rationals (double-precision floating point numbers)
 // str = immutable strings (characters are not a separate type, being instead strings of length 1)
-// f() = function, with argument types inside parentheses and returns after an arrow (e.g. f(int)->int or f()->(int, int) )
+// f() = function, with argument types inside parentheses and returns after an arrow ( e.g. f(int)->(int) or f()->(int, int) )
 // {} = object type, with one or more classes inside the brackets; objects are maps, mapping string keys to primitive values
 
-// Definition of an atom. Atoms are immutable.
-myvar :: 5
+// Declaration of a variable
+myvar :: int
 
-// Definition of a function atom. Most functions are atoms.
-// Because of this, the same name cannot be used for functions with different signatures; they are different types
-// This may change in the future, unless I can come up with cases where the proper function to call would be ambiguous to the compiler
-foo :: f(int z, str word) -> int:
+// Declaration of a function variable
+foo :: f( z :: int, word :: str)->(int)
+
+// Definition of a function
+foo = f(z :: int word :: str) -> (int):
     // size returns the number of bytes a primitive takes up
 	// for a string, this is its length
     return z * size(word)
     
-// Declaration of a variable, implicitly typed as a string
+// Declaration and definition of a variable, implicitly typed as a string
 globalVar := "I am a string!"
 
 // Declaration of a variable, implicitly typed as a function
-globalFunc := f(int x, int y)->(int, int): return (x*y), (x+y)
+globalFunc := f(x :: int, y :: int)->(int, int): return (x*y), (x+y)
 
 // Reassignment of a variable
-globalFunc = f(int x, int y)->(int, int): return (x/y), (x-y)
-
-// Declaration of a variable to an explicit type with no assigned values
-globalVar2 := str
-
-// Declaration of a function variable without an assigned values
-globalFunc2 := f(int x)->int
+globalFunc = f(x :: int, y :: int)->(int, int): return (x/y), (x-y)
 
 // Definition of a class
 {MyClass}:
 	// Declaration of attributes of the class
 	// Attributes are private by default
-    x := int
-    y := int
+    x :: int
+    y :: int
 	
 	// Use of a compiler flag (using '@') to define a public atom
 	// Compiler flags are stacked up and applied to the next expression, declaration, etc.
@@ -49,31 +44,31 @@ globalFunc2 := f(int x)->int
 	// Allows one flag to apply to multiple expressions
     @public...
     get_x :: 
-        f()->int: return .x // .name is how attributes of the current object are accessed
+        f()->(int): return .x // .name is how attributes of the current object are accessed
     get_y :: 
-        f()->int: return .y
+        f()->(int): return .y
 	set_x ::
-		f(int x): .x = x
+		f(x :: int): .x = x
 	set_y ::
-		f(int y): .y = y
+		f(y :: int): .y = y
 	
 	@\... // Ending a continued flag
         
 	// Definition of the class constructor
     @public
     init ::
-        f(int x, int y):
+        f(x :: int, y :: int):
             .x = x
             .y = y
     
 // Definition of a composite class
 class {MyCompositeClass} is {MyClass, PrettyPrintable, SomeComponent}:
-    z := int
+    z :: int
     
 	// Class constructor which calls component's constructors
     @public
     init ::
-		f(int z):
+		f(z :: int):
 			.MyClass(z * 2, z / 2)
 			.PrettyPrintable("My values are: ", ", ")
 			.SomeComponent(z, true, true)
@@ -91,7 +86,7 @@ print(myObject.n) // again, n is part of the MyClass component
 myObject.pprint() // .pprint is part of the PrettyPrintable component
 print(myObject.arbitraryVar) // assuming arbitraryVar is a public attribute of SomeComponent
     
-bar :: f({MyClass} mc, int a):
+bar :: f(mc :: {MyClass}, a :: int):
 	mc.set_x(a)
 	mc.set_y(a)
 	
@@ -117,24 +112,12 @@ class {MyCompositeClassButDifferent} is {MyClass, PrettyPrintable, SomeComponent
 			.PrettyPrintable("My values are: ", ", ")
 			.SomeComponent(z, true, true)
 			
-	// Compiler flag needed to override a component's atom
+	// Compiler flag needed to override a component's data
 	@public @override
-	n :: 15 // redefines the n atom; this data will be returned if n i s requested from an instance of MyCompositeClass, even if in the current context it is being 'viewed' as MyClass
+	n :: 15 // redefines the n variable; this data will be returned if n is requested from an instance of MyCompositeClass, even if in the current context it is being 'viewed' as MyClass
 
 // Declaration of an actor    
 myActor := actor(globalFunc, 10, 10)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
