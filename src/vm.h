@@ -1,14 +1,14 @@
 #include <malloc.h>
 
 #include "rv_strings.h"
+#include "opcodes.h"
 
-#define FRAME_STACK_SIZE 1024
+#define FRAME_STACK_SIZE 256
 
 #define TH_STAT_FIN -1
 #define TH_STAT_WAIT 0
 #define TH_STAT_RDY 1
 
-// bytes are the primary unit
 
 typedef unsigned char byte;
 
@@ -19,20 +19,20 @@ typedef unsigned long PCType;
 // for 10 bits used
 // therefore entire operations will be 16 bits (2 bytes) in length
 // 6 bits are left over
-// these may in the future be used expand the number of opcodes or subfunctions
+// these may in the future be used to expand the number of opcodes or subfunctions
 
 typedef struct Operation_{
 	byte bytes[2];
 } Operation;
 
-Operation read_op(byte* bytes, PCType pc);
+Operation read_op(const byte* bytes, PCType pc);
 
 
-inline byte get_opcode(Operation op);
+byte get_opcode(Operation op);
 
-inline byte get_subop(Operation op);
+byte get_subop(Operation op);
 
-inline Operation encode_operation(byte opcode, byte subop);
+Operation encode_operation(byte opcode, byte subop);
 
 // data is stored as a union
 // size is 64 bits (8 bytes)
@@ -51,9 +51,8 @@ typedef union Data_
 	byte bytes[8];
 } Data;
 
+
 // data is stored in registers:
-
-
 
 typedef struct Register_Frame_{
 	// 64 variable registers
@@ -94,7 +93,7 @@ typedef struct Thread_ {
 	
 	Register_Frame* frame;
 	
-	byte* prog;
+	const byte* prog;
 	PCType pc;
 	PCType pc_next;
 	PCType prog_len;
@@ -102,7 +101,7 @@ typedef struct Thread_ {
 	int status;
 } Thread;
 
-void init_Thread(Thread* th, Register_File* rf, byte* prog, PCType prog_len, PCType pc_start);
+void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start);
 
 Data* access_register(byte r, Thread* rf);
 Data access_constant(const byte* prog, PCType pc, PCType prog_len);
@@ -119,10 +118,6 @@ void run_thread(Thread* th);
 // f name(arg0, ... ) returns <expression>
 // f name(arg0, ... ) returns <type>: <expression-block>
 // both define functions in the current space
-
-// TO-DO: methods of a class can be called from other methods a simply as: .function() 
-// which makes it clear that it is a member function but avoids unnecessary code
-// the same is true for attributes
 
 typedef struct Function_ {
 	PCType pc;

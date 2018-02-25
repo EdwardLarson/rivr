@@ -3,43 +3,10 @@
 
 #define INDENT_PER_BLOCK 4
 
-typedef enum {
-	ABSTRACTION_BLOCK, // multiple abstractions in a row, to be executed sequentially: has any number of children
-	DECLARATION_BLOCK, // multiple declrations in a row, no execution scheme: has any number of children
-	
-	//ABSTRACTIONS
-	    DECLARATION, // has two children, for the identifier (either a variable or atom) and value (expression)
-	
-	//--CONTROL
-	      BRANCH, // if-then-else: has 2 or 3 children depending on if the branch has an else
-	      TRYCATCH, // has 1-3 children, depending on if the try has a catch and then finally blocks
-	      LOOP, // has 4 children, for the initial, conditional, increment, and body expressions
-	//----JUMPS
-	        RETURN, // has up to 32 children (for 32 return values)
-	        BREAK,
-	        CONTINUE,
-	//--EXPRESSIONS
-	//----HARDCODED
-	        CONSTANT, // has a value string, no children
-	        FUNCTION,
-	//------TYPE
-	          PRIMITIVE,
-	          COMPOSITION,
-	//----IDENTIFIERS
-	        ATOM, // immutable atom: has a name, no children
-	        VARIABLE, // variable: has a name, no children
-	//----OPERATIONS
-	        ASSIGN, // assign a value to a variable: has two children, the variable and value (an expression)
-	        CALL, // call a function
-	//------INSTRUCTIONS
-	          U_OPERATION, // operation applied to only one expression: has a operation, one child
-	          B_OPERATION  // operation applied to two expressions: has an operation, two children
-	
-} Node_Type;
-
 struct _Token;
 typedef struct _Token{
 	char* token;
+	int pos;
 	
 	struct _Token* next;
 } Token;
@@ -53,19 +20,6 @@ typedef struct _Compiler_Flag{
 	
 	struct _Compiler_Flag* next_flag;
 } Compiler_Flag;
-
-struct _AST_Node;
-typedef struct _AST_Node {
-	Node_Type type;
-	
-	struct _AST_Node* children; // array of children
-	int n_children;
-	
-	char* data; // a string of data; could be a constant, or identifier, or operator, etc.
-	
-	Compiler_Flag* flags; // list of compiler flags
-	
-} AST_Node;
 
 struct _Parse_Error;
 typedef struct _Parse_Error{
@@ -125,16 +79,31 @@ struct _Typed_Token;
 typedef struct _Typed_Token{
 	Token_Type type;
 	Typed_Token_Data data;
+	int pos;
+	
 	struct _Typed_Token* next;
 	
 } Typed_Token;
 
+typedef struct Line_Vector_{
+	int* array;
+	int size;
+	int n;
+} Line_Vector;
+
 
 Token* next_token(FILE* fp);
 Token* finish_token(char* buffer, int i, char c, FILE* fp);
-Token* create_token(const char* buffer);
+Token* create_token(const char* buffer, int pos_end);
 Token* remove_comments(Token* list);
 Typed_Token* convert_to_proto(Token* t, int prev_indent);
+
+Typed_Token* generate_exit_blocks(Token* t, Typed_Token* typed_token, int prev_indent);
+
+Line_Vector get_line_numbers(FILE* fp);
+void add_line(Line_Vector* lv, int lineno);
+
+
 int is_keyword(const char* token, Token_Type* type, Typed_Token_Data* data);
 int is_operator(const char* token, Token_Type* type, Typed_Token_Data* data);
 int is_structural(const char* token, Token_Type* type, Typed_Token_Data* data);

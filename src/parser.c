@@ -7,73 +7,73 @@
 void print_typed_token(const Typed_Token* tt){
 	switch (tt->type){
 		case T_IDENTIFIER:
-			printf("INDENTIFIER: %s\n", tt->data.string);
+			printf("INDENTIFIER: %s @ %d\n", tt->data.string, tt->pos);
 			break;
 		case T_KEYWORD:
-			printf("KEYWORD: %d\n", tt->data.keyword);
+			printf("KEYWORD: %d @ %d\n", tt->data.keyword, tt->pos);
 			break;
 		case T_FLAG:
-			printf("FLAG: %d\n", tt->data.flag);
+			printf("FLAG: %d @ %d\n", tt->data.flag, tt->pos);
 			break;
 		case T_ATOM_DECLARE:
-			printf("ATOM_DECLARE\n");
+			printf("ATOM_DECLARE @ %d\n", tt->pos);
 			break;
 		case T_VAR_DECLAR:
-			printf("VAR_DECLARE\n");
+			printf("VAR_DECLARE @ %d\n", tt->pos);
 			break;
 		case T_INTEGER:
-			printf("INTEGER: %ld\n", tt->data.integer);
+			printf("INTEGER: %ld @ %d\n", tt->data.integer, tt->pos);
 			break;
 		case T_RATIONAL:
-			printf("RATIONAL: %f\n", tt->data.rational);
+			printf("RATIONAL: %f @ %d\n", tt->data.rational, tt->pos);
 			break;
 		case T_STRING:
-			printf("STRING: %s\n", tt->data.string);
+			printf("STRING: %s @ %d\n", tt->data.string, tt->pos);
 			break;
 		case T_FUNC_RETURN:
-			printf("FUNC_RETURN\n");
+			printf("FUNC_RETURN @ %d\n", tt->pos);
 			break;
 		case T_OPERATOR:
-			printf("OPERATOR: %d\n", tt->data.oper);
+			printf("OPERATOR: %d @ %d\n", tt->data.oper, tt->pos);
 			break;
 		case T_ASSIGNMENT:
-			printf("ASSIGNMENT\n");
+			printf("ASSIGNMENT @ %d\n", tt->pos);
 			break;
 		case T_COMMA:
-			printf("COMMA\n");
+			printf("COMMA @ %d\n", tt->pos);
 			break;
 		case T_PERIOD:
-			printf("PERIOD\n");
+			printf("PERIOD @ %d\n", tt->pos);
 			break;
 		case T_COLON:
-			printf("COLON\n");
+			printf("COLON @ %d\n", tt->pos);
 			break;
 		case T_OPEN_PARA:
-			printf("OPEN_PARA\n");
+			printf("OPEN_PARA @ %d\n", tt->pos);
 			break;
 		case T_CLOSE_PARA:
-			printf("CLOSE_PARA\n");
+			printf("CLOSE_PARA @ %d\n", tt->pos);
 			break;
 		case T_OPEN_BRACE:
-			printf("OPEN_BRACE\n");
+			printf("OPEN_BRACE @ %d\n", tt->pos);
 			break;
 		case T_CLOSE_BRACE:
-			printf("CLOSE_BRACE\n");
+			printf("CLOSE_BRACE @ %d\n", tt->pos);
 			break;
 		case T_OPEN_BRACK:
-			printf("OPEN_BRACK\n");
+			printf("OPEN_BRACK @ %d\n", tt->pos);
 			break;
 		case T_CLOSE_BRACK:
-			printf("CLOSE_BRACK\n");
+			printf("CLOSE_BRACK @ %d\n", tt->pos);
 			break;
 		case T_END_STATEMENT:
-			printf("END_STATEMENT\n");
+			printf("END_STATEMENT @ %d\n", tt->pos);
 			break;
 		case T_ENTER_BLOCK:
-			printf("ENTER_BLOCK (%d)\n", tt->data.indent);
+			printf("ENTER_BLOCK (%d) @ %d\n", tt->data.indent, tt->pos);
 			break;
 		case T_EXIT_BLOCK:
-			printf("EXIT_BLOCK (%d)\n", tt->data.indent);
+			printf("EXIT_BLOCK (%d) @ %d\n", tt->data.indent, tt->pos);
 			break;
 	}
 }
@@ -106,19 +106,12 @@ int main(int argc, char** argv){
 			}
 			
 			printf("Done parsing %s:\n", argv[1]);
-			/*
-			current = list_start;
-			int n_tokens = 0;
 			
-			while(current){
-				printf("TOKEN:\t%s\n", current->token);
-				current = current->next;
-				++n_tokens;
-			}
+			Line_Vector lines = get_line_numbers(fp);
 			
-			printf("Finished printing %d tokens, now removing comment tokens:\n", n_tokens);*/
+			printf("Read %d lines\n", lines.n);
 			
-			//list_start = remove_comments(list_start);
+			fclose(fp);
 			
 			current = list_start;
 			int n_ncomm_tokens = 0;
@@ -160,6 +153,7 @@ int main(int argc, char** argv){
 // add token to stack
 // check stack for a token pattern match
 
+/*
 void parse_file(FILE* fp, AST_Node* root, Parse_Error* errors){
 	AST_Node* current_node = malloc(sizeof(AST_Node));
 	
@@ -175,19 +169,16 @@ void parse_file(FILE* fp, AST_Node* root, Parse_Error* errors){
 		
 	}
 }
-
-/*
-Typed_Token* get_next_typed_token(FILE* fp){
-	// get next token
-	
-	// convert it to a 
-}
 */
 
-Token* create_token(const char* buffer){
+
+Token* create_token(const char* buffer, int pos_end){
+	int token_len = strlen(buffer);
 	Token* token = malloc(sizeof(Token));
-	token->token = malloc(sizeof(char) * (strlen(buffer) + 1));
+	token->token = malloc(sizeof(char) * (token_len + 1));
 	strcpy(token->token, buffer);
+	
+	token->pos = pos_end - token_len;
 	
 	return token;
 }
@@ -195,7 +186,7 @@ Token* create_token(const char* buffer){
 Token* finish_token(char* buffer, int i, char c, FILE* fp){
 	ungetc(c, fp);
 	buffer[i] = '\0';
-	return create_token(buffer);
+	return create_token(buffer, ftell(fp));
 }
 
 Token* next_token(FILE* fp){
@@ -266,7 +257,7 @@ Token* next_token(FILE* fp){
 			case '{':
 			case '}':
 				buffer[1] = '\0';
-				return create_token(buffer);
+				return create_token(buffer, ftell(fp));
 			default:
 				initial_char = buffer[0];
 		}
@@ -379,12 +370,13 @@ Token* next_token(FILE* fp){
 						buffer[i] = c;
 						i++;
 					}else{
-						printf("I knew this day would come... just Ctrl-F me, I'm too tried for proper error handling\n");
+						//printf("I knew this day would come... just Ctrl-F me, I'm too tried for proper error handling\n");
+						return NULL;
 					}
 				}else if (c == '"'){
 					buffer[i] = '"';
 					buffer[i+1] = '\0';
-					return create_token(buffer);
+					return create_token(buffer, ftell(fp));
 				}else{
 					buffer[i] = c;
 					i++;
@@ -420,7 +412,7 @@ Token* next_token(FILE* fp){
 	}
 	
 	buffer[i] = '\0';
-	return create_token(buffer);
+	return create_token(buffer, ftell(fp));
 }
 
 int is_comment_close(Token* t){
@@ -439,6 +431,7 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 	Typed_Token* typed_token = malloc(sizeof(Typed_Token));
 	typed_token->next = NULL;
 	typed_token->data.indent = prev_indent;
+	typed_token->pos = t->pos;
 	
 	//printf("\t1. data->indent is currently %d\n", typed_token->data.indent);
 	
@@ -466,7 +459,7 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 			free(t->token); // freed ASAP because strings could take up a lot of space
 			
 			if (i == 0){
-				// structural blocks require special handling, because they may be enter or exit blocks which generate more tokens
+				// structural blocks require special handling, because they may enter or exit blocks which generate more tokens
 				
 				if (typed_token->data.indent > prev_indent){
 					// subtract INDENT_PER_BLOCK from data.indent until it matches previous indent
@@ -483,26 +476,9 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 					// add INDENT_PER_BLOCK from data.indent until it matches previous indent
 					// create an EXIT_BLOCK for every addition
 					
-					int tmp_indent;
-					Typed_Token* curr_structure_token = typed_token;
 					Typed_Token* original_exit_token = typed_token;
 					
-					for (tmp_indent = typed_token->data.indent + INDENT_PER_BLOCK; tmp_indent < prev_indent; tmp_indent += INDENT_PER_BLOCK){
-						
-						// insert new token before previously generated EXIT_BLOCK token
-						typed_token = malloc(sizeof(Typed_Token));
-						typed_token->next = curr_structure_token;
-						typed_token->type = T_EXIT_BLOCK;
-						typed_token->data.indent = tmp_indent;
-						curr_structure_token = typed_token;
-					}
-					
-					if (tmp_indent > prev_indent){
-						printf("Parse error: bad indent when exiting block\n");
-						// TO-DO: Error handling
-					}
-					
-					
+					typed_token = generate_exit_blocks(t, typed_token, prev_indent);
 					
 					original_exit_token->next = convert_to_proto(t->next, original_exit_token->data.indent);
 				}else{
@@ -524,6 +500,59 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 	free(t);
 	
 	return convert_to_proto(next, prev_indent);
+}
+
+Typed_Token* generate_exit_blocks(Token* t, Typed_Token* typed_token, int prev_indent){
+	
+	int tmp_indent;
+	Typed_Token* curr_structure_token = typed_token;
+	
+	for (tmp_indent = typed_token->data.indent + INDENT_PER_BLOCK; tmp_indent < prev_indent; tmp_indent += INDENT_PER_BLOCK){
+		
+		// insert new token before previously generated EXIT_BLOCK token
+		typed_token = malloc(sizeof(Typed_Token));
+		typed_token->next = curr_structure_token;
+		typed_token->type = T_EXIT_BLOCK;
+		typed_token->data.indent = tmp_indent;
+		typed_token->pos = curr_structure_token->pos;
+		curr_structure_token = typed_token;
+	}
+	
+	if (tmp_indent > prev_indent){
+		printf("Parse error: bad indent when exiting block\n");
+		// TO-DO: Error handling
+	}
+	
+	return typed_token;
+}
+
+Line_Vector get_line_numbers(FILE* fp){
+	Line_Vector lv;
+	lv.n = 0;
+	lv.size = 256;
+	lv.array = malloc(sizeof(int) * lv.size);
+	
+	// reset to beginning of file
+	fseek(fp, 0, SEEK_SET);
+	
+	char c = fgetc(fp);
+	while(c != EOF){
+		if (c == '\n') add_line(&lv, ftell(fp));
+		c = fgetc(fp);
+	}
+	
+	return lv;
+}
+
+void add_line(Line_Vector* lv, int lineno){
+	lv->array[lv->n] = lineno;
+	lv->n++;
+	
+	// resize if necessary
+	if (lv->n >= lv->size){
+		lv->size *= 2;
+		lv->array = realloc(lv->array, sizeof(int) * lv->size);
+	}
 }
 
 int is_keyword(const char* token, Token_Type* type, Typed_Token_Data* data){
@@ -600,7 +629,7 @@ int is_structural(const char* token, Token_Type* type, Typed_Token_Data* data){
 			*type = T_END_STATEMENT;
 		}else if (new_indent < data->indent){
 			
-			*type = T_EXIT_BLOCK; // TO_DO: enough exit_block tokens should be created to match the amount the indent changed
+			*type = T_EXIT_BLOCK;
 			data->indent = new_indent;
 		}else{
 			*type = T_ENTER_BLOCK;
