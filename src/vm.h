@@ -1,5 +1,3 @@
-#include <malloc.h>
-
 
 #define FRAME_STACK_SIZE 1024
 
@@ -7,7 +5,6 @@
 #define TH_STAT_WAIT 0
 #define TH_STAT_RDY 1
 
-// bytes are the primary unit
 
 typedef unsigned char byte;
 
@@ -18,7 +15,7 @@ typedef unsigned long PCType;
 // for 10 bits used
 // therefore entire operations will be 16 bits (2 bytes) in length
 // 6 bits are left over
-// these may in the future be used expand the number of opcodes or subfunctions
+// these may in the future be used to expand the number of opcodes or subfunctions
 
 typedef struct Operation_{
 	byte bytes[2];
@@ -26,51 +23,12 @@ typedef struct Operation_{
 
 Operation read_op(byte* bytes, PCType pc);
 
-typedef enum OPCODE_{
-/* 0*/	ABS,
-/* 1*/	ADD,
-/* 2*/	AND,
-/* 3*/	BRANCH,
-/* 4*/	BITNOT,
-/* 5*/	CALL,
-/* 6*/	DEV,
-/* 7*/	DIV,
-/* 8*/	EQ,
-/* 9*/	GT,
-/*10*/	HALT,
-/*11*/	INPUT,
-/*12*/	JUMP,
-/*13*/	LSH,
-/*14*/	LT,
-/*15*/	M_ALLOC,
-/*16*/	M_FREE,
-/*17*/	M_LOAD,
-/*18*/	M_STORE,
-/*19*/	MOD,
-/*20*/	MOVE,
-/*21*/	MUL,
-/*22*/	NOT,
-/*23*/	OR,
-/*24*/	POPFRAME,
-/*25*/	PUSHFRAME,
-/*26*/	POW,
-/*27*/	PRINT,
-/*28*/	RETURN,
-/*29*/	RSH,
-/*30*/	SAVEFRAME,
-/*31*/	SUB,
-		TH_NEW,
-		TH_JOIN,
-		TH_KILL,
-/*32*/	XOR
-} OPCODE;
 
-
-inline OPCODE get_opcode(Operation op);
+inline byte get_opcode(Operation op);
 
 inline byte get_subop(Operation op);
 
-inline Operation encode_operation(OPCODE opcode, byte subop);
+inline Operation encode_operation(byte opcode, byte subop);
 
 // data is stored as a union
 // size is 64 bits (8 bytes)
@@ -89,9 +47,8 @@ typedef union Data_
 	byte bytes[8];
 } Data;
 
+
 // data is stored in registers:
-
-
 
 typedef struct Register_Frame_{
 	// 64 variable registers
@@ -156,10 +113,6 @@ void run_thread(Thread* th);
 // f name(arg0, ... ) returns <expression>
 // f name(arg0, ... ) returns <type>: <expression-block>
 // both define functions in the current space
-
-// TO-DO: methods of a class can be called from other methods a simply as: .function() 
-// which makes it clear that it is a member function but avoids unnecessary code
-// the same is true for attributes
 
 typedef struct Function_ {
 	PCType pc;

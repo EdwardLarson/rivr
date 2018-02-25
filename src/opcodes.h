@@ -3,46 +3,43 @@
 #include <stdio.h>
 
 // ALL OPERATIONS DEFINED HERE
-/*
 
- 0	ABS,
- 1	ADD,
- 2	AND,
- 3	BRANCH,
- 4	BITNOT,
- 5	CALL,
- 6	DEV,
- 7	DIV,
- 8	EQ,
- 9	GT,
-10	HALT,
-11	INPUT,
-12	JUMP,
-13	LSH,
-14	LT,
-15	M_ALLOC,
-16	M_FREE,
-17	M_LOAD,
-18	M_STORE,
-19	MOD,
-20	MOVE,
-21	MUL,
-22	NOT,
-23	OR,
-24	POPFRAME,
-25	PUSHFRAME,
-26	POW,
-27	PRINT,
-28	RETURN,
-29	RSH,
-30	SAVEFRAME,
-31	SUB,
-32	TH_NEW,
-33	TH_JOIN,
-34	TH_KILL,
-35	XOR
-
-*/
+#define	I_ABS			0x00
+#define	I_ADD			0x01
+#define	I_AND			0x02
+#define	I_BRANCH		0x03
+#define	I_BITNOT		0x04
+#define	I_CALL			0x05
+#define	I_DEV			0x06
+#define	I_DIV			0x07
+#define	I_EQ			0x08
+#define	I_GT			0x09
+#define	I_HALT			0x0A
+#define	I_INPUT			0x0B
+#define	I_JUMP			0x0C
+#define	I_LSH			0x0D
+#define	I_LT			0x0E
+#define	I_M_ALLOC		0x0F
+#define	I_M_FREE		0x10
+#define	I_M_LOAD		0x11
+#define	I_M_STORE		0x12
+#define	I_MOD			0x13
+#define	I_MOVE			0x14
+#define	I_MUL			0x15
+#define	I_NOT			0x16
+#define	I_OR			0x17
+#define	I_POPFRAME		0x18
+#define	I_PUSHFRAME		0x19
+#define	I_POW			0x1A
+#define	I_PRINT			0x1B
+#define	I_RETURN		0x1C
+#define	I_RSH			0x1D
+#define	I_SAVEFRAME		0x1E
+#define	I_SUB			0x1F
+#define	I_TH_NEW		0x20
+#define	I_TH_JOIN		0x21
+#define	I_TH_KILL		0x22
+#define	I_XOR			0x23
 
 // vm operations have a signature of:
 // operation_OPCODE(byte subop, byte* argstart, PCType* pc, PCType prog_len)
