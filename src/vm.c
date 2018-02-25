@@ -24,32 +24,29 @@ int main(int argc, char** argv){
 
 #endif
 
-Operation read_op(byte* bytes, PCType pc){
-	union {
-		byte bytes[2];
-		Operation op;
-	} cast_union;
+Operation read_op(const byte* bytes, PCType pc){
+	Operation op;
 	
-	cast_union.bytes[0] = bytes[pc];
-	cast_union.bytes[1] = bytes[pc + 1];
+	op.bytes[0] = bytes[pc];
+	op.bytes[1] = bytes[pc + 1];
 	
-	return cast_union.op;
+	return op;
 }
 
 byte get_opcode(Operation op){
-	// first 6 bits
-	return (op.bytes[0] & 0xFC);
+	// first 6 bits (bits 0 to 6)
+	return (op.bytes[0] & 0xFC) >> 2;
 }
 
 byte get_subop(Operation op){
-	// bits 6 through 9
-	return ((op.bytes[0] & 0x03) << 6) & (op.bytes[1] & 0xC0);
+	// bits 6 to 9
+	return ((op.bytes[0] & 0x03) << 6) | (op.bytes[1] & 0xC0);
 }
 
 Operation encode_operation(byte opcode, byte subop){
 	Operation op;
-	op.bytes[0] = opcode & 0xFC;
-	op.bytes[0] &= 0x03 & (subop >> 6);
+	op.bytes[0] = 0xFC & (opcode << 2);
+	op.bytes[0] |= 0x03 & (subop >> 6);
 	op.bytes[1] = 0xC0 & (subop << 2);
 	
 	return op;
@@ -97,7 +94,7 @@ Register_Frame* alloc_frame(Register_File* rf, Register_Frame* prv){
 	return frame;
 }
 
-void init_Thread(Thread* th, Register_File* rf, byte* prog, PCType prog_len, PCType pc_start){
+void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start){
 	th->rf = rf;
 	
 	th->frame = alloc_frame(rf, NULL);
@@ -186,16 +183,23 @@ void run_thread(Thread* th){
 		th->pc_next += 2;
 		
 		switch(opcode){
+		case I_HALT:
+			#ifdef DEBUG
+			printf("\tProgram halted.\n");
+			#endif
+			break;
 		default:
 			#ifdef DEBUG
-			printf("\tError: Unknown opcode...\n");
+			printf("\tError: Unknown opcode %u...\n", opcode);
 			#endif
 			break;
 		}
 		
-		printf("Current frame in use? %d\n", th->frame->used);
+		printf("thread exited with status <%d>\n", th->status);
+		printf("pc at <%lu>\n", th->pc);
 		
-		printf("Some data in this frame: %ld", access_register(0x01, th)->n);
+		
+		printf("Some data in this frame: %ld\n", access_register(0x01, th)->n);
 		
 		th->frame = th->frame->nxt_frame;
 		th->frame->nxt_frame = alloc_frame(th->rf, th->frame);

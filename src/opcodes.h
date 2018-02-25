@@ -1,7 +1,3 @@
-#include "vm.h"
-
-#include <stdio.h>
-
 // ALL OPERATIONS DEFINED HERE
 
 #define	I_ABS			0x00
@@ -43,28 +39,3 @@
 
 // vm operations have a signature of:
 // operation_OPCODE(byte subop, byte* argstart, PCType* pc, PCType prog_len)
-
-Data operation_ABS(byte subop, byte* prog, PCType* pc, PCType prog_len){
-	switch(subop){
-		case 0: // one Number in a register
-		// -
-		break;
-		
-		case 1: // one Rational in a register
-		// -
-		break;
-		
-		case 2: // one Number constant in the prog
-		// -
-		break;
-		
-		case 3: // one Rational constant in the prog
-		// -
-		break;
-		
-		default:
-		Data data;
-		return data;
-	}
-}
-

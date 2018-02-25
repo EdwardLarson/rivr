@@ -19,27 +19,8 @@ typedef enum {
 	OR
 } KEYWORD;
 
-#define N_KEYWORDS 16
-const char* const keywords[] = {
-	"f",
-	"int",
-	"rat",
-	"bool",
-	"str",
-	"return",
-	"break",
-	"continue",
-	"while",
-	"for",
-	"foreach",
-	"if",
-	"else",
-	"is",
-	"class",
-	"actor",
-	"and",
-	"or"
-};
+#define N_KEYWORDS 18
+const char* const keywords[N_KEYWORDS];
 
 typedef enum {
 	O_ADD,
@@ -78,39 +59,7 @@ typedef enum {
 
 #define N_OPERATORS 31
 
-const char* const operators[] = {
-	"+",
-	"-",
-	"/",
-	"*",
-	"%",
-	"&",
-	"|",
-	"^",
-	"**",
-	">>",
-	"<<",
-	"++",
-	"--",
-	"<",
-	"<=",
-	">",
-	">=",
-	"!",
-	"==",
-	"!=",
-	"+=",
-	"-=",
-	"/=",
-	"*=",
-	"%=",
-	"&=",
-	"|=",
-	"^=",
-	"**=",
-	">>=",
-	"<<="
-};
+const char* const operators[N_OPERATORS];
 
 typedef enum {
 	F_PUBLIC,
@@ -120,8 +69,4 @@ typedef enum {
 
 #define N_FLAGS 3
 
-const char* const flags[] = {
-	"@public",
-	"@private",
-	"@override"
-};
+const char* const flags[N_FLAGS];

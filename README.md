@@ -9,6 +9,11 @@ The river VM has a stack of frames, where each frame has 128 registers.
 ### Parser
 gcc src/parser.c -o parse -D PARSER_ONLY
 
-./parse <input-file> will parse the input file first into raw tokens, which are displayed. Pressing enter will process those tokens into typed tokens ready to be organized into an Abstract Syntax Tree. The typed tokens will be displayed as well. Try running it on meta/rivr_specs.txt
+./parse <input-file> 
+	* Parse the input file first into raw tokens, which are displayed. Pressing enter will process those tokens into typed tokens ready to be organized into an Abstract Syntax Tree. The typed tokens will be displayed as well. Try running it on meta/rivr_specs.txt
 
-As of latest commit, no other source files have meaningful executables.
+### Standalone Executable
+gcc src/rivr.c src/vm.c src/parser.c src/keywords.c -o rivr
+
+./rivr 
+	* Briefly initialize the VM and run a program which immediately halts.
