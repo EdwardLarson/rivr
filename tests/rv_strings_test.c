@@ -438,6 +438,49 @@ int TEST_string_search(){
 	return 1;
 }
 
+int TEST_string_hash(){
+	
+	Rivr_String* rv_string;
+	Rivr_String* rv_string2;
+	unsigned int hash1;
+	unsigned int hash2;
+	
+	// verify hash function works
+	rv_string = string_create_from_seq(test_seq1, LENGTH1, STRING_NONE);
+	hash1 = string_generate_hash(rv_string);
+	Assert(
+		hash1 != 0,
+		"string's hash was 0",
+		hash1
+	);
+	
+	// generate a hash which should be different
+	rv_string2 = string_create_from_seq(test_seq3, LENGTH3, STRING_NONE);
+	hash2 = string_generate_hash(rv_string2);
+	Assert(
+		hash2 != hash1,
+		"two different strings had the same hash",
+		hash2
+	);
+	string_destroy(rv_string2);
+	
+	// compare string hashes with different internal structure, but same data
+	rv_string2 = string_create_from_seq(test_seq1, LENGTH1, STRING_MINNODES);
+	hash2 = string_generate_hash(rv_string2);
+	Assert(
+		hash1 == hash2,
+		"identical data with different hashes",
+		hash2
+	);
+	
+	
+	string_destroy(rv_string);
+	string_destroy(rv_string2);
+	
+	printf("Completed 3 tests in TEST_string_hash\n");
+	
+	return 1;
+}
 
 int main(int argc, char** argv){
 	
@@ -451,6 +494,7 @@ int main(int argc, char** argv){
 	n_successful += TEST_string_remove();
 	n_successful += TEST_string_arithmetic();
 	n_successful += TEST_string_search();
+	n_successful += TEST_string_hash();
 	
 	printf("Succeeded in %d tests.\n", n_successful);
 	

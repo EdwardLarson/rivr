@@ -41,6 +41,8 @@ Rivr_String* string_substring(const Rivr_String* str, int begin, int end);
 
 Rivr_String* string_merge(Rivr_String* str1, Rivr_String* str2);
 
+unsigned int string_generate_hash(Rivr_String* str);
+
 char string_char_at(const Rivr_String* str, int index);
 
 char* string_flatten(Rivr_String* str);

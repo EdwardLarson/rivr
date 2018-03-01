@@ -28,14 +28,8 @@ Rivr_String* string_create(int len, int flags){
 		
 	}else{
 		
-		Rivr_String* str = calloc(1, sizeof(Rivr_String));
+		Rivr_String* str = calloc(1, sizeof(Rivr_String)); // zeroes the seq
 		str->length = len;
-		/*
-		int i;
-		for (i = 0; i < len; i++){
-			sequence(str)[i] = '\0';
-		}
-		*/
 		
 		return str;
 	}
@@ -315,3 +309,33 @@ void string_remove(Rivr_String* str, int begin, int end){
 Rivr_String* string_substring(const Rivr_String* str, int begin, int end){
 	return string_create(1, STRING_NONE);
 }
+
+unsigned int string_hash_function(const char* bytes, int size, unsigned int seed, unsigned int accumulated_i){
+    unsigned int default_seed = 0x110101011100110;
+	unsigned int z = seed;
+	if (!seed) z = default_seed;
+	
+	for (unsigned int i = 0; i < size; i++){
+		
+		z ^= ((unsigned int) (bytes[i])) ^ ((accumulated_i + i + 1) * (accumulated_i + i + 10));
+		z *= ~z >> 5;
+		z -= ((accumulated_i + i) * 255) ^ (unsigned int) (bytes[i]);
+	}
+	
+	return z;
+}
+
+unsigned int partial_hash(const Rivr_String* str, unsigned int seed, unsigned int i){
+	if (is_leaf(str)){
+		return string_hash_function(sequence(str), str->length, seed, i);
+	}else{
+		seed = partial_hash(left_subseq(str), seed, i);
+		return partial_hash(right_subseq(str), seed, i + left_subseq(str)->length);
+	}
+}
+
+unsigned int string_generate_hash(Rivr_String* str){
+	return partial_hash(str, 0, 0);
+}
+
+
