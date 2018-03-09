@@ -37,13 +37,15 @@ Operation encode_operation(byte opcode, byte subop);
 // data is stored as a union
 // size is 64 bits (8 bytes)
 
+struct Thread_;
+
 typedef union Data_
 {
 	long int n; // 64 bit number: Number / num
 	double d; // 64 bit floating-point number: Rational / rat
 	void* p; // pointer to arbitrary data: Object
-	void* s; // pointer to some string data: String
-	void* t; // pointer to some thread data: Thread
+	Rivr_String* s; // pointer to some string data: String
+	struct Thread_* t; // pointer to some thread data: Thread
 	void* f; // pointer to some function data: Function / f
 	byte b; // boolean value: Boolean / bool
 	void* h; // pointer to a hash table
@@ -95,7 +97,6 @@ typedef struct Thread_ {
 	
 	const byte* prog;
 	PCType pc;
-	PCType pc_next;
 	PCType prog_len;
 	
 	int status;
@@ -103,8 +104,8 @@ typedef struct Thread_ {
 
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start);
 
-Data* access_register(byte r, Thread* rf);
-Data access_constant(const byte* prog, PCType pc, PCType prog_len);
+Data* access_register(PCType pc, const Thread* th);
+Data access_constant(PCType pc, const Thread* th);
 
 // function which performs actual execution of code
 

@@ -103,12 +103,14 @@ void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_le
 	th->prog = prog;
 	th->prog_len = prog_len;
 	th->pc = pc_start;
-	th->pc_next = pc_start;
 	
 	th->status = TH_STAT_RDY;
 }
 
-Data* access_register(byte r, Thread* th){
+Data* access_register(PCType pc, const Thread* th){
+	
+	byte r = th->prog[pc];
+	
 	// get first 3 bits for register type
 	byte r_type = (r & 0xE0) >> 5;
 	
@@ -167,15 +169,15 @@ Data* access_register(byte r, Thread* th){
 	}
 }
 
-Data access_constant(const byte* prog, PCType pc, PCType prog_len){
+Data access_constant(PCType pc, const Thread* th){
 	Data data;
-	if (pc + sizeof(Data) >= prog_len){
+	if (pc + sizeof(Data) >= th->prog_len){
 		// error
 	}else{
-		union {Data data, byte bytes[sizeof(Data)} data_union;
+		union {Data data; byte bytes[sizeof(Data)];} data_union;
 		int i;
 		for (i = 0; i < sizeof(Data); i++){
-			data_union.bytes[i] = prog[pc + i];
+			data_union.bytes[i] = th->prog[pc + i];
 		}
 		
 		data = data_union.data;
@@ -188,40 +190,339 @@ void run_thread(Thread* th){
 	Operation op;
 	byte opcode;
 	byte subop;
+	PCType pc_next;
+	
+	Data args[4]; // temporary storage for up to 4 args
+	Data result;
 	
 	while ((th->status > 0) && (th->pc < th->prog_len)){
 		
-		th->pc_next = th->pc;
+		pc_next = th->pc;
 		
 		op = read_op(th->prog, th->pc);
 		opcode = get_opcode(op);
 		subop = get_subop(op);
 		
-		th->pc_next += 2;
+		pc_next += 2;
 		
 		switch(opcode){
+			
+		case I_ABS:
+			switch(subop){
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_NONE, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					result.n = (args[0].n < 0) ? (-1 * args[0].n) : (args[0].n);
+					
+					break;
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_NONE, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					result.n = (args[0].n < 0) ? (-1 * args[0].n) : (args[0].n);
+					
+					break;
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_NONE, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					result.d = (args[0].d < 0) ? (-1 * args[0].d) : (args[0].d);
+					
+					break;
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_NONE, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					result.d = (args[0].d < 0) ? (-1 * args[0].d) : (args[0].d);
+					
+					break;
+				default:
+					break;
+			}
+			
+			*access_register(pc_next, th) = result;
+			
+			break;
+			
+		case I_ADD:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_AND:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_BRANCH:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_BITNOT:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_CALL:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_DEV:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_DIV:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_EQ:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_GT:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
 		case I_HALT:
 			#ifdef DEBUG
 			printf("\tProgram halted.\n");
 			#endif
 			break;
-		default:
-			#ifdef DEBUG
-			printf("\tError: Unknown opcode %u...\n", opcode);
-			#endif
+			
+		case I_INPUT:
+			switch(subop){
+				
+				default:
+					break;
+			}
 			break;
+			
+		case I_JUMP:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_LSH:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_LT:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_M_ALLOC:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_M_FREE:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_M_LOAD:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_M_STORE:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_MOD:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_MOVE:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_MUL:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_NOT:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_OR:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_POPFRAME:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_PUSHFRAME:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_POW:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_PRINT:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_RETURN:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_SAVEFRAME:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_SUB:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_TH_NEW:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_TH_JOIN:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_TH_KILL:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_XOR:
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		default:
+			printf("Rivr Error: Unknown opcode\n");
+			#ifdef DEBUG
+			printf("\tInvalid opcode %x\t", opcode);
+			#endif
+		
 		}
 		
 		printf("thread exited with status <%d>\n", th->status);
 		printf("pc at <%lu>\n", th->pc);
 		
-		
-		printf("Some data in this frame: %ld\n", access_register(0x01, th)->n);
-		
-		th->frame = th->frame->nxt_frame;
-		th->frame->nxt_frame = alloc_frame(th->rf, th->frame);
-		
-		th->pc = th->pc_next;
+		th->pc = pc_next;
 	}
 	
 	
