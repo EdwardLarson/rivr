@@ -3,7 +3,7 @@
 #include "../src/rv_strings.h"
 #include "test_tools.h"
 
-#define LENGTH1 383
+#define LENGTH1 382
 const char test_seq1[383] = "The Starry Mountains to the east of the Dawn Desert divide that dry, dark region from the lush, verdant jungles and forests of the West Cornucopia. The mountains stand at the intersection of cultures: the wild Dawn Deserters to the west; the civilized men of the Cornucopia to the East; the zealous Nightborn who are native to the high valleys; the primitive shepherds to the south.";
 
 #define LENGTH2 11
@@ -62,6 +62,10 @@ void string_print_metadata(const Rivr_String* str, int indent){
 		printf("[\n");
 		string_print_metadata(str->data.subseqs[0], indent + 1);
 		string_print_metadata(str->data.subseqs[1], indent + 1);
+		
+		for (i = 0; i < indent; i++){
+			putc('\t', stdout);
+		}
 		printf("]\n");
 	}
 	else{
@@ -299,15 +303,14 @@ int TEST_string_insert(){
 	free(test_result_flattened);
 	string_destroy(rv_string);
 	
-	
 	// insert seq into a multi-node string
 	rv_string = string_create_from_seq(test_seq1, LENGTH1, STRING_NONE);
 	string_insert_seq(rv_string, 148, test_seq3, LENGTH3);
 	test_result_flattened = string_flatten(rv_string);
 	Assert(
-		strncmp(test_seq1_edited, test_result_flattened, 511) == 0,
+		strncmp(test_seq1_edited, test_result_flattened, LENGTH1 + LENGTH3) == 0,
 		"failed to insert sequence into multi-node string",
-		strncmp(test_seq1_edited, test_result_flattened, 511)
+		strncmp(test_seq1_edited, test_result_flattened, LENGTH1 + LENGTH3)
 	);
 	free(test_result_flattened);
 	string_destroy(rv_string);
@@ -345,11 +348,13 @@ int TEST_string_insert(){
 	
 	// insert string into a multi-node string
 	rv_string = string_create_from_seq(test_seq1, LENGTH1, STRING_NONE);
+	
 	string_insert_str(rv_string, 148, rv_string2);
 	test_result_flattened = string_flatten(rv_string);
+	
 	Assert(
 		strncmp(test_seq1_edited, test_result_flattened, 511) == 0,
-		"failed to insert short sequence into multi-node string",
+		"failed to insert string of length 128 into multi-node string",
 		strncmp(test_seq1_edited, test_result_flattened, 511)
 	);
 	free(test_result_flattened);
@@ -406,21 +411,82 @@ int TEST_string_remove(){
 	free(test_result_flattened);
 	string_destroy(rv_string);
 	
-	printf("Completed 3 tests in TEST_string_insert\n");
+	printf("Completed 3 tests in TEST_string_remove\n");
 	
 	return 1;
 }
 
 int TEST_string_arithmetic(){
-	// merge two single-node strings
+	
+	Rivr_String* rv_string;
+	Rivr_String* rv_string2;
+	Rivr_String* rv_string3;
+	char* test_result;
+	const char test1_result_expected[LENGTH2 + LENGTH3 + 1] = "The woods throughout the northeast are young and crisscrossed with low stone walls that give evidence that someone farmed here. Lorem ipsum";
+	const char test2_result_expected[LENGTH2 + LENGTH2 + 1] = "Lorem ipsumLorem ipsum";
+	const char test3_result_expected[LENGTH1 + LENGTH1 + 1] = "The Starry Mountains to the east of the Dawn Desert divide that dry, dark region from the lush, verdant jungles and forests of the West Cornucopia. The mountains stand at the intersection of cultures: the wild Dawn Deserters to the west; the civilized men of the Cornucopia to the East; the zealous Nightborn who are native to the high valleys; the primitive shepherds to the south.The Starry Mountains to the east of the Dawn Desert divide that dry, dark region from the lush, verdant jungles and forests of the West Cornucopia. The mountains stand at the intersection of cultures: the wild Dawn Deserters to the west; the civilized men of the Cornucopia to the East; the zealous Nightborn who are native to the high valleys; the primitive shepherds to the south.";
+	
+	// merge two single-node strings to create a multi-node string
+	rv_string = string_create_from_seq(test_seq3, LENGTH3, STRING_NONE);
+	rv_string2 = string_create_from_seq(test_seq2, LENGTH2, STRING_NONE);
+	rv_string3 = string_merge(rv_string, rv_string2);
+	Assert(
+		count_string_nodes(rv_string3) == count_string_nodes(rv_string) + count_string_nodes(rv_string2) + 1,
+		"node count mismatch after merging single-node strings",
+		count_string_nodes(rv_string3) - (count_string_nodes(rv_string) + count_string_nodes(rv_string2) + 1)
+	);
+	test_result = string_flatten(rv_string3);
+	Assert(
+		strncmp(test_result, test1_result_expected, LENGTH2 + LENGTH3) == 0,
+		"flattened string mismatch in multi-node string after merging single-node strings",
+		strncmp(test_result, test1_result_expected, LENGTH2 + LENGTH3)
+	);
+	string_destroy(rv_string3);
+	free(test_result);
+	
+	// merge two small strings to create a single node string
+	rv_string = string_create_from_seq(test_seq2, LENGTH2, STRING_NONE);
+	rv_string2 = string_create_from_seq(test_seq2, LENGTH2, STRING_NONE);
+	rv_string3 = string_merge(rv_string, rv_string2);
+	Assert(
+		count_string_nodes(rv_string3) == 1,
+		"node count != 1 for a merged string of length <= 128",
+		count_string_nodes(rv_string3)
+	);
+	test_result = string_flatten(rv_string3);
+	Assert(
+		strncmp(test_result, test2_result_expected, LENGTH2 + LENGTH2) == 0,
+		"flattened string mismatch in single-node string after merging single-node strings",
+		strncmp(test_result, test2_result_expected, LENGTH2 + LENGTH2)
+	);
+	string_destroy(rv_string);
+	string_destroy(rv_string2);
+	string_destroy(rv_string3);
+	free(test_result);
 	
 	// merge two multi-node strings
+	rv_string = string_create_from_seq(test_seq1, LENGTH1, STRING_NONE);
+	rv_string2 = string_create_from_seq(test_seq1, LENGTH1, STRING_MINNODES);
+	rv_string3 = string_merge(rv_string, rv_string2);
+	Assert(
+		count_string_nodes(rv_string3) == 1 + count_string_nodes(rv_string) + count_string_nodes(rv_string2),
+		"node count mismatch after merging multi-node string",
+		count_string_nodes(rv_string3) - (1 + count_string_nodes(rv_string) + count_string_nodes(rv_string2))
+	);
+	test_result = string_flatten(rv_string3);
+	Assert(
+		strncmp(test_result, test3_result_expected, LENGTH1 + LENGTH1) == 0,
+		"flattened string mismatch in multi-node string after merging multi-node strings",
+		strncmp(test_result, test3_result_expected, LENGTH1 + LENGTH1)
+	);
+	string_destroy(rv_string3);
+	free(test_result);
 	
 	// take substring of single-node string
 	
 	// take substring of multi-node string
 	
-	printf("Completed 4 UNIMPLEMENTED tests in TEST_string_arithmetic\n");
+	printf("Completed 3 implemented, 2 UNIMPLEMENTED tests in TEST_string_arithmetic\n");
 	
 	return 1;
 }

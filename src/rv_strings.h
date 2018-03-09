@@ -45,8 +45,8 @@ unsigned int string_generate_hash(Rivr_String* str);
 
 char string_char_at(const Rivr_String* str, int index);
 
-char* string_flatten(Rivr_String* str);
-int string_flatten_subseq(Rivr_String* str, char* array, int index, int arraylen);
+char* string_flatten(const Rivr_String* str);
+int string_flatten_subseq(const Rivr_String* str, char* array, int index, int arraylen);
 const Rivr_String* string_get_leaf(const Rivr_String* str, int index, int* local_index);
 int string_compare(const Rivr_String* str1, const Rivr_String* str2);
 

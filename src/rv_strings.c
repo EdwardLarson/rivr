@@ -94,7 +94,7 @@ Rivr_String* string_merge(Rivr_String* str1, Rivr_String* str2){
 	
 	if ( new_parent->length <= 128){
 		int i;
-		int parent_i;
+		int parent_i = 0;
 		
 		for (i = 0; i < str1->length; i++){
 			sequence(new_parent)[parent_i] = sequence(str1)[i];
@@ -174,7 +174,7 @@ int string_load_seq(const Rivr_String* str, char* array, int index, int arraylen
 	return index;
 }
 
-int string_flatten_subseq(Rivr_String* str, char* array, int index, int arraylen){
+int string_flatten_subseq(const Rivr_String* str, char* array, int index, int arraylen){
 	if (!str || !array) return 0;
 	if (arraylen <= 0 || index < 0) return 0;
 	
@@ -190,7 +190,7 @@ int string_flatten_subseq(Rivr_String* str, char* array, int index, int arraylen
 }
 
 // flatten a distributed river string into one contiguous array
-char* string_flatten(Rivr_String* str){
+char* string_flatten(const Rivr_String* str){
 	if (!str) return NULL;
 	
 	char* array = malloc (sizeof(char) * str->length);
@@ -253,9 +253,14 @@ void string_insert_seq(Rivr_String* str, int index, const char* seq, int len){
 			// insert seq into existing string node
 			
 			// move existing sequence to make room for insert
+			char tmp_seq[128];
 			int i;
-			for (i = 0; i < len; i++){
-				sequence(str)[i + index + len] = sequence(str)[i + index];
+			for (i = index; i < str->length; i++){
+				tmp_seq[i] = sequence(str)[i];
+			}
+			
+			for (i = index; i < str->length + len; i++){
+				sequence(str)[i + len] = tmp_seq[i];
 			}
 			
 			// copy sequence into node
@@ -299,6 +304,34 @@ void string_insert_seq(Rivr_String* str, int index, const char* seq, int len){
 }
 
 void string_insert_str(Rivr_String* str1, int index, const Rivr_String* str2){
+	
+	if (is_leaf(str1)){
+		// need to split leaf
+		// problem is that this splits the leaf into 3:
+		// str1 left of index, str2, and str1 right of index
+		
+		// solution: 
+		// clone str2
+		Rivr_String* str2_copy = string_clone(str2);
+		// insert left of str1 to str2 clone at index 0
+		string_insert_seq(str2_copy, 0, sequence(str1), index);
+		// insert right of str1 to str2 clone at index str2->length - 1
+		string_insert_seq(str2_copy, str2_copy->length, &sequence(str1)[index], str1->length - index);
+		// replace the leaf str1 with the str2_copy
+		*str1 = *str2_copy;
+		
+		free(str2_copy);
+		
+	}else{
+		if (index >= left_subseq(str1)->length){
+			string_insert_str(right_subseq(str1), index - left_subseq(str1)->length, str2);
+		}else{
+			string_insert_str(left_subseq(str1), index, str2);
+		}
+		
+		str1->length += str2->length;
+	}
+	
 	return;
 }
 
