@@ -1,5 +1,5 @@
 // ALL OPERATIONS DEFINED HERE
-
+// 64 possible instructions
 #define	I_ABS			0x00
 #define	I_ADD			0x01
 #define	I_AND			0x02
@@ -22,13 +22,13 @@
 #define	I_MOD			0x13
 #define	I_MOVE			0x14
 #define	I_MUL			0x15
-#define	I_NOT			0x16
-#define	I_OR			0x17
-#define	I_POPFRAME		0x18
-#define	I_PUSHFRAME		0x19
-#define	I_POW			0x1A
-#define	I_PRINT			0x1B
-#define	I_RETURN		0x1C
+#define I_NOOP			0x16
+#define	I_NOT			0x17
+#define	I_OR			0x18
+#define	I_POPFRAME		0x19
+#define	I_PUSHFRAME		0x1A
+#define	I_POW			0x1B
+#define	I_PRINT			0x1C
 #define	I_RSH			0x1D
 #define	I_SAVEFRAME		0x1E
 #define	I_SUB			0x1F
@@ -43,14 +43,27 @@
 //   bit1: arg 1 type (register or constant)
 //   bit2: arg 2 type (register or constant)
 //   bit3: arg 3 type (register or constant)
+// Format 2:
+//   bit 0: arg type (register or constant)
+//   bits 1-3: data type (any of the 8 rivr data types)
 
 #define FORMAT1_SUBOP(datatype, arg1_type, arg2_type, arg3_type) (datatype | (arg1_type << 1) | (arg2_type << 1) | (arg3_type << 1))
+#define FORMAT2_SUBOP(arg_type, datatype) (arg_type | datatype << 1)
 
 #define SO_NONE			0
 #define SO_NUMBER		0
 #define SO_RATIONAL		1
+#define SO_OBJECT		2
+#define SO_STRING		3
+#define SO_THREAD		4
+#define SO_FUNCTION		5
+#define SO_BOOLEAN		6
+#define SO_HASHTABLE	7
 #define SO_REGISTER		0
 #define SO_CONSTANT		1
+
+#define SO_ABSOLUTE		0
+#define SO_RELATIVE		1
 
 // vm operations have a signature of:
 // operation_OPCODE(byte subop, byte* argstart, Thread* th, PCType* pc, PCType prog_len)

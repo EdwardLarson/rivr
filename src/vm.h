@@ -9,6 +9,8 @@
 #define TH_STAT_WAIT 0
 #define TH_STAT_RDY 1
 
+#define CLEAR_DATA(data) data.n = 0;
+
 
 typedef unsigned char byte;
 
@@ -46,7 +48,7 @@ typedef union Data_
 	void* p; // pointer to arbitrary data: Object
 	Rivr_String* s; // pointer to some string data: String
 	struct Thread_* t; // pointer to some thread data: Thread
-	void* f; // pointer to some function data: Function / f
+	PCType f; // pointer to some function data: Function / f
 	byte b; // boolean value: Boolean / bool
 	void* h; // pointer to a hash table
 	
@@ -103,6 +105,8 @@ typedef struct Thread_ {
 } Thread;
 
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start);
+void push_frame(Thread* th);
+void pop_frame(Thread* th);
 
 Data* access_register(PCType pc, const Thread* th);
 Data access_constant(PCType pc, const Thread* th);

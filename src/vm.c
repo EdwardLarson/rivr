@@ -79,6 +79,10 @@ Register_Frame* alloc_frame(Register_File* rf, Register_Frame* prv){
 	Register_Frame* frame = next_free_frame(rf);
 	
 	if (!frame){
+		#ifdef DEBUG
+		printf("\tWarning: dynamic frame allocation\n");
+		#endif
+		
 		frame = malloc(sizeof(Register_Frame));
 		if (!frame){
 			// out of frame stack space and out of heap memory
@@ -105,6 +109,25 @@ void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_le
 	th->pc = pc_start;
 	
 	th->status = TH_STAT_RDY;
+}
+
+void push_frame(Thread* th){
+	th->frame = th->frame->nxt_frame;
+	
+	if (!th->frame->nxt_frame) 
+		th->frame->nxt_frame = alloc_frame(th->rf, th->frame);
+}
+
+void pop_frame(Thread* th){
+	if (!th->frame->prv_frame){
+		//TO-DO: Error when unable to pop further (stack underflow)
+		#ifdef DEBUG
+		printf("/tStack underflow!\n");
+		#endif
+	}else{
+		th->frame->used = 0;
+		th->frame = th->frame->prv_frame;
+	}
 }
 
 Data* access_register(PCType pc, const Thread* th){
@@ -197,11 +220,17 @@ void run_thread(Thread* th){
 	
 	while ((th->status > 0) && (th->pc < th->prog_len)){
 		
+		CLEAR_DATA(result);
+		
 		pc_next = th->pc;
 		
 		op = read_op(th->prog, th->pc);
 		opcode = get_opcode(op);
 		subop = get_subop(op);
+		
+		#ifdef DEBUG
+		printf("Subop: %x\n", subop);
+		#endif
 		
 		pc_next += 2;
 		
@@ -243,7 +272,46 @@ void run_thread(Thread* th){
 			
 		case I_ADD:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n + args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n + args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = args[0].d + args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.d = args[0].d + args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -258,10 +326,13 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_BRANCH:
-			switch(subop){
-				
-				default:
-					break;
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			if (args[0].b){
+				args[1] = access_constant(pc_next, th);
+				pc_next = args[1].f;
+			}else{
+				pc_next += sizeof(Data);
 			}
 			break;
 			
@@ -274,6 +345,12 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_CALL:
+			
+			args[0] = access_constant(pc_next, th);
+			pc_next += sizeof(Data);
+			
+			pc_next = args[0].f;
+		
 			switch(subop){
 				
 				default:
@@ -299,7 +376,46 @@ void run_thread(Thread* th){
 			
 		case I_EQ:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].n == args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].n == args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].d == args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].d == args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -307,7 +423,46 @@ void run_thread(Thread* th){
 			
 		case I_GT:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].n > args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].n > args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].d > args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].d > args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -328,7 +483,17 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_JUMP:
+			args[0] = access_constant(pc_next, th);
+			pc_next += sizeof(Data);
+		
 			switch(subop){
+				case SO_ABSOLUTE:
+					pc_next = args[0].f;
+					break;
+					
+				case SO_RELATIVE:
+					pc_next = th->pc + args[0].f; // TO-DO: Verify that if .f is written as a signed number that sign will be used here
+					break;
 				
 				default:
 					break;
@@ -345,7 +510,46 @@ void run_thread(Thread* th){
 			
 		case I_LT:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].n < args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].n < args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].d < args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].d < args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -415,6 +619,25 @@ void run_thread(Thread* th){
 			}
 			break;
 			
+		case I_NOOP:
+			
+			#ifdef DEBUG
+			printf("\tNo-op\n");
+			#endif
+		
+			switch(subop){
+				#ifdef DEBUG
+				case SO_NUMBER:
+					printf("\t\tnumber subop\n");
+					break;
+				case SO_HASHTABLE:
+					printf("\t\thashtable subop\n");
+					break;
+				#endif
+				default:
+					break;
+			}
+			
 		case I_OR:
 			switch(subop){
 				
@@ -424,19 +647,11 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_POPFRAME:
-			switch(subop){
-				
-				default:
-					break;
-			}
+			pop_frame(th);
 			break;
 			
 		case I_PUSHFRAME:
-			switch(subop){
-				
-				default:
-					break;
-			}
+			push_frame(th);
 			break;
 			
 		case I_POW:
@@ -448,15 +663,38 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_PRINT:
-			switch(subop){
-				
-				default:
-					break;
-			}
-			break;
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
 			
-		case I_RETURN:
 			switch(subop){
+				case SO_NUMBER:
+					printf("%ld", args[0].n);
+					break;
+				case SO_RATIONAL:
+					printf("%f", args[0].d);
+					break;
+				case SO_OBJECT:
+					printf("obj<%p>", args[0].p);
+					break;
+				case SO_STRING:
+					string_print(args[0].s);
+					break;
+				case SO_THREAD:
+					printf("thr<%p>", args[0].t);
+					break;
+				case SO_FUNCTION:
+					printf("fun<%lx>", args[0].f);
+					break;
+				case SO_BOOLEAN:
+					if (args[0].b){
+						printf("True");
+					}else{
+						printf("False");
+					}
+					break;
+				case SO_HASHTABLE:
+					printf("htb<%p>", args[0].h);
+					break;
 				
 				default:
 					break;
@@ -518,8 +756,6 @@ void run_thread(Thread* th){
 			#endif
 		
 		}
-		
-		printf("thread exited with status <%d>\n", th->status);
 		printf("pc at <%lu>\n", th->pc);
 		
 		th->pc = pc_next;
