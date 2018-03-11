@@ -50,4 +50,6 @@ int string_flatten_subseq(const Rivr_String* str, char* array, int index, int ar
 const Rivr_String* string_get_leaf(const Rivr_String* str, int index, int* local_index);
 int string_compare(const Rivr_String* str1, const Rivr_String* str2);
 
+void string_print(const Rivr_String* str);
+
 

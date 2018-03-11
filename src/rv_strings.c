@@ -1,5 +1,7 @@
 #include "rv_strings.h"
 
+#include <stdio.h>
+
 #define left_subseq(str) (str->data.subseqs[0])
 #define right_subseq(str) (str->data.subseqs[1])
 #define sequence(str) str->data.seq
@@ -344,7 +346,7 @@ Rivr_String* string_substring(const Rivr_String* str, int begin, int end){
 }
 
 unsigned int string_hash_function(const char* bytes, int size, unsigned int seed, unsigned int accumulated_i){
-    unsigned int default_seed = 0x110101011100110;
+    unsigned int default_seed = 0x11B00413;
 	unsigned int z = seed;
 	if (!seed) z = default_seed;
 	
@@ -369,6 +371,15 @@ unsigned int partial_hash(const Rivr_String* str, unsigned int seed, unsigned in
 
 unsigned int string_generate_hash(Rivr_String* str){
 	return partial_hash(str, 0, 0);
+}
+
+void string_print(const Rivr_String* str){
+	if (is_leaf(str)){
+		printf("%.*s", str->length, sequence(str));
+	}else{
+		string_print(left_subseq(str));
+		string_print(right_subseq(str));
+	}
 }
 
 

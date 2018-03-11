@@ -548,6 +548,28 @@ int TEST_string_hash(){
 	return 1;
 }
 
+int TEST_string_print(){
+	Rivr_String* rv_string;
+	
+	printf("Printing small string:");
+	rv_string = string_create_from_seq(test_seq2, LENGTH2, STRING_NONE);
+	string_print(rv_string, printf);
+	putc('\n', stdout);
+	
+	string_destroy(rv_string);
+	
+	printf("Printing large string:");
+	rv_string = string_create_from_seq(test_seq1, LENGTH1, STRING_NONE);
+	string_print(rv_string, printf);
+	putc('\n', stdout);
+	
+	string_destroy(rv_string);
+	
+	printf("Completed 2 tests in TEST_string_print\n");
+	
+	return 1;
+}
+
 int main(int argc, char** argv){
 	
 	int n_successful = 0;
@@ -561,6 +583,7 @@ int main(int argc, char** argv){
 	n_successful += TEST_string_arithmetic();
 	n_successful += TEST_string_search();
 	n_successful += TEST_string_hash();
+	n_successful += TEST_string_print();
 	
 	printf("Succeeded in %d tests.\n", n_successful);
 	
