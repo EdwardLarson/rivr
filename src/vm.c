@@ -40,14 +40,14 @@ byte get_opcode(Operation op){
 
 byte get_subop(Operation op){
 	// bits 6 to 9
-	return ((op.bytes[0] & 0x03) << 6) | (op.bytes[1] & 0xC0);
+	return ((op.bytes[0] & 0x03) << 2) | ((op.bytes[1] & 0xC0) >> 6);
 }
 
 Operation encode_operation(byte opcode, byte subop){
 	Operation op;
 	op.bytes[0] = 0xFC & (opcode << 2);
-	op.bytes[0] |= 0x03 & (subop >> 6);
-	op.bytes[1] = 0xC0 & (subop << 2);
+	op.bytes[0] |= 0x03 & (subop >> 2);
+	op.bytes[1] = 0xC0 & (subop << 6);
 	
 	return op;
 }
@@ -229,7 +229,7 @@ void run_thread(Thread* th){
 		subop = get_subop(op);
 		
 		#ifdef DEBUG
-		printf("Subop: %x\n", subop);
+		printf("Opcode[%x], Subop[%x]\n", opcode, subop);
 		#endif
 		
 		pc_next += 2;
@@ -336,7 +336,7 @@ void run_thread(Thread* th){
 			}
 			break;
 			
-		case I_BITNOT:
+		case I_BITWISE:
 			switch(subop){
 				
 				default:
@@ -346,8 +346,8 @@ void run_thread(Thread* th){
 			
 		case I_CALL:
 			
-			args[0] = access_constant(pc_next, th);
-			pc_next += sizeof(Data);
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
 			
 			pc_next = args[0].f;
 		
@@ -472,6 +472,7 @@ void run_thread(Thread* th){
 			#ifdef DEBUG
 			printf("\tProgram halted.\n");
 			#endif
+			th->status = TH_STAT_FIN;
 			break;
 			
 		case I_INPUT:
@@ -597,7 +598,17 @@ void run_thread(Thread* th){
 			
 		case I_MOVE:
 			switch(subop){
-				
+				case SO_REGISTER:
+					result = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					break;
+				case SO_CONSTANT:
+					result = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -677,7 +688,14 @@ void run_thread(Thread* th){
 					printf("obj<%p>", args[0].p);
 					break;
 				case SO_STRING:
-					string_print(args[0].s);
+					if(!args[0].s){
+						#ifdef DEBUG
+						printf("{in null string branch}");
+						#endif
+						putc('\n', stdout);
+					}else{
+						string_print(args[0].s);
+					}
 					break;
 				case SO_THREAD:
 					printf("thr<%p>", args[0].t);
@@ -699,6 +717,10 @@ void run_thread(Thread* th){
 				default:
 					break;
 			}
+			
+			#ifdef DEBUG
+			printf("\n\tprint accomplished\n");
+			#endif
 			break;
 			
 		case I_SAVEFRAME:
@@ -756,7 +778,18 @@ void run_thread(Thread* th){
 			#endif
 		
 		}
-		printf("pc at <%lu>\n", th->pc);
+		
+		if (HAS_RETURN(opcode)){
+			#ifdef DEBUG
+			printf("\tWriting instruction result to register\n");
+			#endif
+			*access_register(pc_next, th) = result;
+			pc_next += 1;
+		}
+		
+		#ifdef DEBUG
+		printf("\tpc at <%lu>\n", th->pc);
+		#endif
 		
 		th->pc = pc_next;
 	}

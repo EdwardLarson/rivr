@@ -4,7 +4,7 @@
 #define	I_ADD			0x01
 #define	I_AND			0x02
 #define	I_BRANCH		0x03
-#define	I_BITNOT		0x04
+#define	I_BITWISE		0x04
 #define	I_CALL			0x05
 #define	I_DEV			0x06
 #define	I_DIV			0x07
@@ -37,6 +37,31 @@
 #define	I_TH_KILL		0x22
 #define	I_XOR			0x23
 
+#define HAS_RETURN(opcpde) (\
+	(opcode == I_ABS) | \
+	(opcode == I_ADD) | \
+	(opcode == I_AND) | \
+	(opcode == I_BITWISE) | \
+	(opcode == I_DIV) | \
+	(opcode == I_EQ) | \
+	(opcode == I_GT) | \
+	(opcode == I_LSH) | \
+	(opcode == I_LT) | \
+	(opcode == I_M_ALLOC) | \
+	(opcode == I_M_FREE) | \
+	(opcode == I_M_STORE) | \
+	(opcode == I_MOD) | \
+	(opcode == I_MOVE) | \
+	(opcode == I_MUL) | \
+	(opcode == I_NOT) | \
+	(opcode == I_OR) | \
+	(opcode == I_POW) | \
+	(opcode == I_RSH) | \
+	(opcode == I_SUB) | \
+	(opcode == I_XOR) \
+)
+
+
 // subop format:
 // Format 1:
 //   bit0: data type (integer or decimal)
@@ -59,6 +84,7 @@
 #define SO_FUNCTION		5
 #define SO_BOOLEAN		6
 #define SO_HASHTABLE	7
+
 #define SO_REGISTER		0
 #define SO_CONSTANT		1
 
