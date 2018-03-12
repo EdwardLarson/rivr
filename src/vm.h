@@ -84,6 +84,7 @@ typedef struct Register_File_ {
 } Register_File;
 
 int init_Register_File(Register_File* rf);
+void init_spec_registers(Data* registers);
 
 Register_Frame* next_free_frame(Register_File* rf);
 

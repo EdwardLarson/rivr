@@ -104,11 +104,37 @@ void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_le
 	th->frame = alloc_frame(rf, NULL);
 	th->frame->nxt_frame = alloc_frame(rf, th->frame);
 	
+	init_spec_registers(rf->s_registers);
+	
 	th->prog = prog;
 	th->prog_len = prog_len;
 	th->pc = pc_start;
 	
 	th->status = TH_STAT_RDY;
+}
+
+void init_spec_registers(Data* registers){
+	Data data;
+	
+	// $!0 = 0
+	data.n = 0;
+	registers[0] = data;
+	
+	// $!1 = 1
+	data.n = 1;
+	registers[1] = data;
+	
+	// $!2 = stdout
+	data.n = (long int) stdout;
+	registers[2] = data;
+	
+	// $!3 = stdin
+	data.n = (long int) stdin;
+	registers[3] = data;
+	
+	// $!3 = stderr
+	data.n = (long int) stderr;
+	registers[3] = data;
 }
 
 void push_frame(Thread* th){
