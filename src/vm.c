@@ -502,8 +502,24 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_INPUT:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
-				
+				case SO_NUMBER:
+					fscanf((FILE*) args[0].n, "%ld", &result.n);
+					while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
+					break;
+				case SO_RATIONAL:
+					fscanf((FILE*) args[0].n, "%lf", &result.d);
+					while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
+					break;
+				case SO_STRING:
+					result.s = read_into_string((FILE*) args[0].n);
+					break;
+				case SO_BOOLEAN:
+					result.b = read_into_bool((FILE*) args[0].n);
+					break;
 				default:
 					break;
 			}
@@ -803,58 +819,6 @@ void run_thread(Thread* th){
 			}
 			break;
 			
-		/*
-		case I_PRINT:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_NUMBER:
-					printf("%ld", args[0].n);
-					break;
-				case SO_RATIONAL:
-					printf("%f", args[0].d);
-					break;
-				case SO_OBJECT:
-					printf("obj<%p>", args[0].p);
-					break;
-				case SO_STRING:
-					if(!args[0].s){
-						#ifdef DEBUG
-						printf("{in null string branch}");
-						#endif
-						putc('\n', stdout);
-					}else{
-						string_print(args[0].s);
-					}
-					break;
-				case SO_THREAD:
-					printf("thr<%p>", args[0].t);
-					break;
-				case SO_FUNCTION:
-					printf("fun<%lx>", args[0].f);
-					break;
-				case SO_BOOLEAN:
-					if (args[0].b){
-						printf("True");
-					}else{
-						printf("False");
-					}
-					break;
-				case SO_HASHTABLE:
-					printf("htb<%p>", args[0].h);
-					break;
-				
-				default:
-					break;
-			}
-			
-			#ifdef DEBUG
-			printf("\n\tprint accomplished\n");
-			#endif
-			break;
-		*/
-			
 		case I_SAVEFRAME:
 			switch(subop){
 				
@@ -929,4 +893,31 @@ void run_thread(Thread* th){
 	
 }
 
+Rivr_String* read_into_string(FILE* fp){
+	char buff[1024];
+	fgets(buff, 1024, fp);
+	int str_len = strlen(buff);
+	
+	Rivr_String* rv_str = string_create_from_seq(buff, str_len, STRING_NONE);
+	#ifdef DEBUG
+	printf("Read in string: %s\n", buff);
+	string_print(rv_str, stdout);
+	putc('\n', stdout);
+	#endif
+	
+	return rv_str;
+}
+
+byte read_into_bool(FILE* fp){
+	char* c_str;
+	int str_len;
+	fscanf(fp, "%ms%n", &c_str, &str_len);
+	while (getc(fp) != '\n'); // flush input buffer
+	
+	if (strcmp(c_str, "true") == 0){
+		return 1;
+	}else{
+		return 0;
+	}
+}
 

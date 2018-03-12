@@ -1,5 +1,6 @@
 #include <malloc.h>
 #include <stdio.h>
+#include <string.h>
 
 #define MAP_POST 0
 #define MAP_PRE 1

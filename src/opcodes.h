@@ -44,6 +44,7 @@
 	(opcode == I_BITWISE) | \
 	(opcode == I_DIV) | \
 	(opcode == I_EQ) | \
+	(opcode == I_INPUT) | \
 	(opcode == I_GT) | \
 	(opcode == I_LSH) | \
 	(opcode == I_LT) | \
