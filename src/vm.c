@@ -683,6 +683,110 @@ void run_thread(Thread* th){
 			}
 			break;
 			
+		case I_OUTPUT:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			switch(subop){
+				case FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					fprintf((FILE*) args[0].n, "%ld", args[1].n);
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_RATIONAL):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					fprintf((FILE*) args[0].n, "%f", args[1].d);
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_OBJECT):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					fprintf((FILE*) args[0].n, "obj<%p>", args[1].p);
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_STRING):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					string_print(args[1].s, (FILE*) args[0].n);
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_THREAD):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					fprintf((FILE*) args[0].n, "thr<%p>", args[1].t);
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].f);
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_BOOLEAN):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					if (args[1].b){
+						fprintf((FILE*) args[0].n, "True");
+					}else{
+						fprintf((FILE*) args[0].n, "False");
+					}
+					break;
+				case FORMAT2_SUBOP(SO_REGISTER, SO_HASHTABLE):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					fprintf((FILE*) args[0].n, "htb<%p>", args[1].h);
+					break;
+					
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_NUMBER):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "%ld", args[1].n);
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_RATIONAL):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "%f", args[1].d);
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_OBJECT):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "obj<%p>", args[1].p);
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_STRING):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "%.*s", 8, args[1].bytes);
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_THREAD):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "thr<%p>", args[1].t);
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_FUNCTION):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].f);
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_BOOLEAN):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					if (args[1].b){
+						fprintf((FILE*) args[0].n, "True");
+					}else{
+						fprintf((FILE*) args[0].n, "False");
+					}
+					break;
+				case FORMAT2_SUBOP(SO_CONSTANT, SO_HASHTABLE):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					fprintf((FILE*) args[0].n, "htb<%p>", args[1].h);
+					break;
+				
+				default:
+					break;
+			}
+			
+			#ifdef DEBUG
+			printf("\n\tprint accomplished\n");
+			#endif
+			break;
+			
 		case I_POPFRAME:
 			pop_frame(th);
 			break;
@@ -699,6 +803,7 @@ void run_thread(Thread* th){
 			}
 			break;
 			
+		/*
 		case I_PRINT:
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -748,6 +853,7 @@ void run_thread(Thread* th){
 			printf("\n\tprint accomplished\n");
 			#endif
 			break;
+		*/
 			
 		case I_SAVEFRAME:
 			switch(subop){

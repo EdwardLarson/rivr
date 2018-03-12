@@ -18,7 +18,7 @@ byte* write_addition();
 
 
 int main(int argc, char** argv){
-	PCType proglen = 13;
+	PCType proglen = 14 + sizeof(Data);
 	
 	byte* prog = write_addition();
 	
@@ -63,15 +63,19 @@ byte* write_noops_halt(){
 }
 
 byte* write_addition(){
-	int proglen = 13;
+	int proglen = 14 + sizeof(Data);
 	byte* prog = malloc( sizeof(byte) * (proglen) );
 	
 	Operation add_op = encode_operation(I_ADD, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
-	Operation print_op = encode_operation(I_PRINT, SO_NUMBER);
-	Operation newline_op = encode_operation(I_PRINT, SO_STRING);
+	Operation print_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
+	Operation newline_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_CONSTANT, SO_STRING));
 	Operation halt_op = encode_operation(I_HALT, SO_NONE);
 	
 	printf("add_op raw: %x %x\n", add_op.bytes[0], add_op.bytes[1]);
+	
+	Data newline;
+	newline.bytes[0] = '\n';
+	newline.bytes[1] = '\0';
 	
 	int pc = 0;
 	// ADD $!1 $!1 > $0
@@ -81,10 +85,12 @@ byte* write_addition(){
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// PRINT $0
 	pc = write_opcode(prog, pc, print_op); // 2
+	pc = write_register(prog, pc, 2, REG_SPEC); // 1
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// PRINT newline
 	pc = write_opcode(prog, pc, newline_op); // 2
-	pc = write_register(prog, pc, 0, REG_SPEC); // 1
+	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_constant(prog, pc, newline); // _data
 	// HALT
 	pc = write_opcode(prog, pc, halt_op); // 2
 	

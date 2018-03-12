@@ -25,10 +25,10 @@
 #define I_NOOP			0x16
 #define	I_NOT			0x17
 #define	I_OR			0x18
-#define	I_POPFRAME		0x19
-#define	I_PUSHFRAME		0x1A
-#define	I_POW			0x1B
-#define	I_PRINT			0x1C
+#define I_OUTPUT		0x19
+#define	I_POPFRAME		0x1A
+#define	I_PUSHFRAME		0x1B
+#define	I_POW			0x1C
 #define	I_RSH			0x1D
 #define	I_SAVEFRAME		0x1E
 #define	I_SUB			0x1F

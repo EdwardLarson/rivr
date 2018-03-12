@@ -979,7 +979,7 @@
 		
 		<tr>
 		<td>
-			NUMBER
+			NUMBER_VAR
 		</td>
 		<td>
 			print $data as a %ld to $fp
@@ -993,7 +993,7 @@
 		
 		<tr>
 		<td>
-			RATIONAL
+			RATIONAL_VAR
 		</td>
 		<td>
 			print $data as a %lf to $fp
@@ -1007,7 +1007,7 @@
 		
 		<tr>
 		<td>
-			OBJECT
+			OBJECT_VAR
 		</td>
 		<td>
 			print Object information about $data to $fp
@@ -1021,10 +1021,10 @@
 		
 		<tr>
 		<td>
-			STRING
+			STRING_VAR
 		</td>
 		<td>
-			print $data as a Rivr_String to $fp. If $data is null, prints a newline character
+			print $data as a Rivr_String to $fp.
 		</td>
 		<td><ul>
 			<li>$fp</li>
@@ -1035,7 +1035,7 @@
 		
 		<tr>
 		<td>
-			THREAD
+			THREAD_VAR
 		</td>
 		<td>
 			print thread information from $data to $fp
@@ -1049,7 +1049,7 @@
 		
 		<tr>
 		<td>
-			FUNCTION
+			FUNCTION_VAR
 		</td>
 		<td>
 			print function information from $data to $fp
@@ -1063,7 +1063,7 @@
 		
 		<tr>
 		<td>
-			BOOLEAN
+			BOOLEAN_VAR
 		</td>
 		<td>
 			print $data as a boolean ("true" or "false") to $fp
@@ -1077,7 +1077,7 @@
 		
 		<tr>
 		<td>
-			HASHTABLE
+			HASHTABLE_VAR
 		</td>
 		<td>
 			print hashtable information from $data to $fp
@@ -1087,6 +1087,118 @@
 			<li>$data</li>
 		</ul></td>
 		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NUMBER_CONST
+		</td>
+		<td>
+			print #data as a %ld to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RATIONAL_CONST
+		</td>
+		<td>
+			print #data as a %lf to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			OBJECT_CONST
+		</td>
+		<td>
+			print Object information about #data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			STRING_CONST
+		</td>
+		<td>
+			$print up to 8 chars stored in #data
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			THREAD_CONST
+		</td>
+		<td>
+			print thread information from #data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			FUNCTION_CONST
+		</td>
+		<td>
+			print function information from #data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			BOOLEAN_CONST
+		</td>
+		<td>
+			print $data as a boolean ("true" or "false") to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			HASHTABLE_CONST
+		</td>
+		<td>
+			print hashtable information from #data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>#data</li>
+		</ul></td>
+		<td>11</td>
 		</tr>
 		
 		</table>
@@ -1112,33 +1224,6 @@
 	<tr>
 	<td>I_POW</td>
 	<td>Compute an exponential</td>
-	<td>
-		<table border="1px solid gray" width="100%">
-		<tr>
-		<th>NAME</th>
-		<th>DESCRIPTION</th>
-		<th>ARGS</th>
-		<th>BYTES</th>
-		</tr>
-		
-		<tr>
-		<td>
-		</td>
-		<td>
-			
-		</td>
-		<td><ul>
-		</ul></td>
-		<td></td>
-		</tr>
-		
-		</table>
-	</td>
-	</tr>
-	
-	<tr>
-	<td>I_PRINT</td>
-	<td>Output to terminal</td>
 	<td>
 		<table border="1px solid gray" width="100%">
 		<tr>
