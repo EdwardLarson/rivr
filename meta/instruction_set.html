@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="en" ng-app>
+	<head>
+		<meta charset="utf-8">
+		<title>Rivr Instruction Set</title>
+	</head>
+	<body>
+	
+	<table id="instructions" border="2px solid black" width="100%" margin="10px">
+	
+	<tr>
+	<th>INSTRUCTION</th>
+	<th>DESCRIPTION</th>
+	<th width="50%">SUBOPS</th>
+	</tr>
+	
+	<tr>
+	<td></td>
+	<td></td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_ABS</td>
+	<td>Store the absolute value of a Number or Rational to a register</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR
+		</td>
+		<td>
+			$dest = abs($src) where $src stores a Number
+		</td>
+		<td><ul>
+			<li> $src </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_CONST
+		</td>
+		<td>
+			$dest = abs(#con) where #con is a Number
+		</td>
+		<td><ul>
+			<li> #con </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>11</th>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR
+		</td>
+		<td>
+			$dest = abs($src) where $src stores a Rational
+		</td>
+		<td><ul>
+			<li> $src </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_CONST
+		</td>
+		<td>
+			$dest = abs(#con) where #con is a Rational
+		</td>
+		<td><ul>
+			<li> #con </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_ADD</td>
+	<td>Compute sum of two Numbers or Rationals</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR_VAR
+		</td>
+		<td>
+			$dest = $a + $b, $a and $b store Numbers
+		</td>
+		<td><ul>
+			<li> $a </li>
+			<li> $b </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR_CONST
+		</td>
+		<td>
+			$dest = $a + #b, $a stores and #b is a Number
+		</td>
+		<td><ul>
+			<li> $a </li>
+			<li> #b </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR_VAR
+		</td>
+		<td>
+			$dest = $a + $b, $a and $b store Rationals
+		</td>
+		<td><ul>
+			<li> $a </li>
+			<li> $b </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR_CONST
+		</td>
+		<td>
+			$dest = $a + #b, $a stores and #b is a Rational
+		</td>
+		<td><ul>
+			<li> $a </li>
+			<li> #b </li>
+			<li> $dest </li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_AND</td>
+	<td>Compute logical AND of two boolean values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_BRANCH</td>
+	<td>Conditional jump</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NONE
+		</td>
+		<td>
+			if ($condition) jump to #address
+		</td>
+		<td><ul>
+			<li> $condition </li>
+			<li> #address </li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_BITWISE</td>
+	<td>Perform a bitwise logical operation</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			AND
+		</td>
+		<td>
+			$dest = $a & $b
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NOT
+		</td>
+		<td>
+			$dest = ~$a
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			OR
+		</td>
+		<td>
+			$dest = $a | $b
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			XOR
+		</td>
+		<td>
+			$dest = $a ^ $b
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_CALL</td>
+	<td>Call a function</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NONE
+		</td>
+		<td>
+			Jump to $address
+		</td>
+		<td><ul>
+			<li>$address</li>
+		</ul></td>
+		<td>3</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_DEV</td>
+	<td>?</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_DIV</td>
+	<td>Compute divisor of two numerical values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_EQ</td>
+	<td>Compare two numerical or boolean values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR_VAR
+		</td>
+		<td>
+			$dest = ($a == $b), $a and $b store Numbers
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR_CONST
+		</td>
+		<td>
+			$dest = ($a == #b), $a stores and #b is a Number
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>#b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR_VAR
+		</td>
+		<td>
+			$dest = ($a == $b), $a and $b store Rationals
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR_CONST
+		</td>
+		<td>
+			$dest = ($a == #b), $a stores and #b is a Rational
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>#b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		<tr>
+		<td>
+			BOOL_VAR_VAR
+		</td>
+		<td>
+			$dest = ($a == $b), $a and $b store Booleans
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			BOOL_VAR_CONST
+		</td>
+		<td>
+			$dest = ($a == #b), $a stores and #b is a Boolean
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>#b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_GT</td>
+	<td>Compare two numerical values: True if first is larger</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR_VAR
+		</td>
+		<td>
+			$dest = ($a > $b), $a and $b stores Numbers
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NUM_VAR_CONST
+		</td>
+		<td>
+			$dest = ($a > #b), $a stores and #b is a Number
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>#b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR_VAR
+		</td>
+		<td>
+			$dest = ($a > $b), $a and $b stores Rationals
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RAT_VAR_CONST
+		</td>
+		<td>
+			$dest = ($a > #b), $a stores and #b is a Rational
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>#b</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_HALT</td>
+	<td>Halt thread execution and exit</td>
+	<td>
+		None
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_INPUT</td>
+	<td>Receive POSIX input: terminal, file, etc.</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_JUMP</td>
+	<td>Jump program to another address</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			ABSOLUTE
+		</td>
+		<td>
+			pc = #address
+		</td>
+		<td><ul>
+			<li>#address</li>
+		</ul></td>
+		<td>10</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RELATIVE
+		</td>
+		<td>
+			pc = pc + #address
+		</td>
+		<td><ul>
+			<li>#address</li>
+		</ul></td>
+		<td>10</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_LSH</td>
+	<td>Left hand shift a numerical value</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_LT</td>
+	<td>Compare two numerical values: True if second if larger</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_M_ALLOC</td>
+	<td>Allocate a block of heap memory</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_M_FREE</td>
+	<td>Free a previously allocated block of heap memory</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_M_LOAD</td>
+	<td>Load a single primitive from heap memory</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_M_STORE</td>
+	<td>Load a single primitive to heap memory</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_MOD</td>
+	<td>Compute modulus of a numerical value</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_MOVE</td>
+	<td>Move a value into a register</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_MUL</td>
+	<td>Compute product of two numerical values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_NOOP</td>
+	<td>No operation</td>
+	<td>
+		None
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_NOT</td>
+	<td>Logical inverse of a boolean value</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_OR</td>
+	<td>Logical OR of two boolean values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_OUTPUT</td>
+	<td>Perform POSIX output</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NUMBER
+		</td>
+		<td>
+			print $data as a %ld to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			RATIONAL
+		</td>
+		<td>
+			print $data as a %lf to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			OBJECT
+		</td>
+		<td>
+			print Object information about $data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			STRING
+		</td>
+		<td>
+			print $data as a Rivr_String to $fp. If $data is null, prints a newline character
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			THREAD
+		</td>
+		<td>
+			print thread information from $data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			FUNCTION
+		</td>
+		<td>
+			print function information from $data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			BOOLEAN
+		</td>
+		<td>
+			print $data as a boolean ("true" or "false") to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			HASHTABLE
+		</td>
+		<td>
+			print hashtable information from $data to $fp
+		</td>
+		<td><ul>
+			<li>$fp</li>
+			<li>$data</li>
+		</ul></td>
+		<td>4</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_POPFRAME</td>
+	<td>Move to next frame, allocating if necessary</td>
+	<td>
+		None
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_PUSHFRAME</td>
+	<td>Move to previous frame</td>
+	<td>
+		None
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_POW</td>
+	<td>Compute an exponential</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_PRINT</td>
+	<td>Output to terminal</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_RSH</td>
+	<td>Right-hand shift a numerical value</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_SAVEFRAME</td>
+	<td>Copy and store the current frame</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_SUB</td>
+	<td>Compute difference of two numerical values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_TH_NEW</td>
+	<td>Spawn new thread</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_TH_JOIN</td>
+	<td>Block until a thread finishes</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_TH_KILL</td>
+	<td>Halt and tear-down another thread</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_XOR</td>
+	<td>Logical XOR of two boolean values</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+		</td>
+		<td>
+			
+		</td>
+		<td><ul>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	</table>
+	
+	</body>
+	
+</html>
