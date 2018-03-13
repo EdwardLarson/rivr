@@ -297,10 +297,11 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_ADD:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+					
 			switch(subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
 					
@@ -309,8 +310,6 @@ void run_thread(Thread* th){
 					break;
 					
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
 					args[1] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
 					
@@ -319,8 +318,6 @@ void run_thread(Thread* th){
 					break;
 					
 				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
 					
@@ -329,8 +326,6 @@ void run_thread(Thread* th){
 					break;
 					
 				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
 					args[1] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
 					
@@ -344,7 +339,23 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_AND:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
+				case SO_REGISTER:
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].b && args[1].b;
+					break;
+					
+				case SO_CONSTANT:
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].b && args[1].b;
+					break;
 				
 				default:
 					break;
@@ -363,8 +374,36 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_BITWISE:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
+				case FORMAT3_SUBOP(SO_REGISTER, SO_AND):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n & args[1].n;
+					break;
+					
+				case FORMAT3_SUBOP(SO_REGISTER, SO_NOT):
+					
+					result.n = ~(args[0].n);
+					break;
 				
+				case FORMAT3_SUBOP(SO_REGISTER, SO_OR):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n | args[1].n;
+					break;
+					
+				case FORMAT3_SUBOP(SO_REGISTER, SO_XOR):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n ^ args[1].n;
+					break;
+					
 				default:
 					break;
 			}
@@ -384,6 +423,12 @@ void run_thread(Thread* th){
 			}
 			break;
 			
+		case I_DECR:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			result.n = args[0].n - 1;
+			
 		case I_DEV:
 			switch(subop){
 				
@@ -394,7 +439,66 @@ void run_thread(Thread* th){
 			
 		case I_DIV:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n / args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n / args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n / args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = args[0].d / args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.d = args[0].d / args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = args[0].d / args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -469,6 +573,16 @@ void run_thread(Thread* th){
 					
 					break;
 					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += sizeof(1);
+					
+					result.b = args[0].n > args[1].n;
+					
+					break;
+					
 				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -489,6 +603,16 @@ void run_thread(Thread* th){
 					
 					break;
 					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += sizeof(1);
+					
+					result.b = args[0].d > args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -500,6 +624,12 @@ void run_thread(Thread* th){
 			#endif
 			th->status = TH_STAT_FIN;
 			break;
+			
+		case I_INCR:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			result.n = args[0].n + 1;
 			
 		case I_INPUT:
 			args[0] = *access_register(pc_next, th);
@@ -545,7 +675,36 @@ void run_thread(Thread* th){
 			
 		case I_LSH:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n << args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n << args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n << args[1].n;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -573,6 +732,16 @@ void run_thread(Thread* th){
 					
 					break;
 					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += sizeof(1);
+					
+					result.b = args[0].n < args[1].n;
+					
+					break;
+					
 				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -588,6 +757,16 @@ void run_thread(Thread* th){
 					pc_next += 1;
 					args[1] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
+					
+					result.b = args[0].d < args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += sizeof(1);
 					
 					result.b = args[0].d < args[1].d;
 					
@@ -632,7 +811,36 @@ void run_thread(Thread* th){
 			
 		case I_MOD:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n % args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n % args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n % args[1].n;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -657,19 +865,53 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_MUL:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+					
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n * args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n * args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = args[0].d * args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.d = args[0].d * args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
 			break;
 			
 		case I_NOT:
-			switch(subop){
-				
-				default:
-					break;
-			}
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			result.b = !(args[0].b);
+			
 			break;
 			
 		case I_NOOP:
@@ -692,7 +934,23 @@ void run_thread(Thread* th){
 			}
 			
 		case I_OR:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
+				case SO_REGISTER:
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = args[0].b || args[1].b;
+					break;
+					
+				case SO_CONSTANT:
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = args[0].b || args[1].b;
+					break;
 				
 				default:
 					break;
@@ -813,7 +1071,103 @@ void run_thread(Thread* th){
 			
 		case I_POW:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = pow_num(args[0].n, args[1].n);
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = pow_num(args[0].n, args[1].n);
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = pow_num(args[0].n, args[1].n);
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = pow_rat(args[0].n, args[1].n);
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.d = pow_rat(args[0].n, args[1].n);
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = pow_rat(args[0].n, args[1].n);
+					
+					break;
+					
+				default:
+					break;
+			}
+			break;
+			
+		case I_RSH:
+			switch(subop){
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n >> args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n >> args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n >> args[1].n;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -829,7 +1183,66 @@ void run_thread(Thread* th){
 			
 		case I_SUB:
 			switch(subop){
-				
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n - args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.n = args[0].n - args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.n = args[0].n - args[1].n;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = args[0].d - args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.d = args[0].d - args[1].d;
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.d = args[0].d - args[1].d;
+					
+					break;
+					
 				default:
 					break;
 			}
@@ -860,7 +1273,23 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_XOR:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
+				case SO_REGISTER:
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.b = (args[0].b && !args[1].b) || (!args[0].b && args[1].b);
+					break;
+					
+				case SO_CONSTANT:
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.b = (args[0].b && !args[1].b) || (!args[0].b && args[1].b);
+					break;
 				
 				default:
 					break;
@@ -921,3 +1350,27 @@ byte read_into_bool(FILE* fp){
 	}
 }
 
+long int pow_num(long int b, long int e){
+	// TO-DO: account for negative numbers?
+	if (e <= 0) return 1;
+	
+	long int result = b;
+	while (e > 1){
+		result *= result;
+		result += result * (e % 2);
+		e /= 2;
+	}
+	
+	return result;
+}
+
+double pow_rat(double b, double e){
+	// TO-DO: Make an actual pow function
+	double result = b;
+	while (e >= 1){
+		result *= result;
+		e /= 2;
+	}
+	
+	return result;
+}

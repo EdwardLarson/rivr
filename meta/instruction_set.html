@@ -371,6 +371,36 @@
 	</tr>
 	
 	<tr>
+	<td>I_DECR</td>
+	<td>Increment an integer</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			Default
+		</td>
+		<td>
+			$dest = $a - 1, $a stores a Number
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$dest</li>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
 	<td>I_DEV</td>
 	<td>?</td>
 	<td>
@@ -451,7 +481,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		<tr>
@@ -496,7 +526,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		
@@ -663,7 +693,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		<tr>
@@ -708,7 +738,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		</table>
@@ -720,6 +750,36 @@
 	<td>Halt thread execution and exit</td>
 	<td>
 		None
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_INCR</td>
+	<td>Increment an integer</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			Default
+		</td>
+		<td>
+			$dest = $a + 1, $a stores a Number
+		</td>
+		<td><ul>
+			<li>$a</li>
+			<li>$dest</li>
+		</ul></td>
+		<td></td>
+		</tr>
+		
+		</table>
 	</td>
 	</tr>
 	
@@ -891,52 +951,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_VAR_VAR
-		</td>
-		<td>
-			$dest = $a << $b, $a and $b store Rationals
-		</td>
-		<td><ul>
-			<li> $a </li>
-			<li> $b </li>
-			<li> $dest </li>
-		</ul></td>
-		<td>5</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_VAR_CONST
-		</td>
-		<td>
-			$dest = $a << #b, $a stores and #b is a Rational
-		</td>
-		<td><ul>
-			<li> $a </li>
-			<li> #b </li>
-			<li> $dest </li>
-		</ul></td>
 		<td>12</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_CONST_VAR
-		</td>
-		<td>
-			$dest = #a << $b, #a is and $b stores a Rational
-		</td>
-		<td><ul>
-			<li> #a </li>
-			<li> $b </li>
-			<li> $dest </li>
-		</ul></td>
-		<td>5</td>
 		</tr>
 		
 		</table>
@@ -997,7 +1012,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		<tr>
@@ -1042,7 +1057,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		</table>
@@ -1211,52 +1226,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_VAR_VAR
-		</td>
-		<td>
-			$dest = $a % $b, $a and $b store Rationals
-		</td>
-		<td><ul>
-			<li> $a </li>
-			<li> $b </li>
-			<li> $dest </li>
-		</ul></td>
-		<td>5</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_VAR_CONST
-		</td>
-		<td>
-			$dest = $a % #b, $a stores and #b is a Rational
-		</td>
-		<td><ul>
-			<li> $a </li>
-			<li> #b </li>
-			<li> $dest </li>
-		</ul></td>
 		<td>12</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_CONST_VAR
-		</td>
-		<td>
-			$dest = #a % $b, #a is and $b stores a Rational
-		</td>
-		<td><ul>
-			<li> #a </li>
-			<li> $b </li>
-			<li> $dest </li>
-		</ul></td>
-		<td>5</td>
 		</tr>
 		
 		</table>
@@ -1389,11 +1359,14 @@
 		
 		<tr>
 		<td>
+			Default
 		</td>
 		<td>
-			
+			$dest = !$a, $a stores a boolean
 		</td>
 		<td><ul>
+			<li>$a</li>
+			<li>$dest</li>
 		</ul></td>
 		<td></td>
 		</tr>
@@ -1760,7 +1733,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		<tr>
@@ -1805,7 +1778,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		</table>
@@ -1866,52 +1839,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_VAR_VAR
-		</td>
-		<td>
-			$dest = $a >> $b, $a and $b store Rationals
-		</td>
-		<td><ul>
-			<li> $a </li>
-			<li> $b </li>
-			<li> $dest </li>
-		</ul></td>
-		<td>5</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_VAR_CONST
-		</td>
-		<td>
-			$dest = $a >> #b, $a stores and #b is a Rational
-		</td>
-		<td><ul>
-			<li> $a </li>
-			<li> #b </li>
-			<li> $dest </li>
-		</ul></td>
 		<td>12</td>
-		</tr>
-		
-		<tr>
-		<td>
-			RAT_CONST_VAR
-		</td>
-		<td>
-			$dest = #a >> $b, #a is and $b stores a Rational
-		</td>
-		<td><ul>
-			<li> #a </li>
-			<li> $b </li>
-			<li> $dest </li>
-		</ul></td>
-		<td>5</td>
 		</tr>
 		
 		</table>
@@ -1999,7 +1927,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		<tr>
@@ -2044,7 +1972,7 @@
 			<li> $b </li>
 			<li> $dest </li>
 		</ul></td>
-		<td>5</td>
+		<td>12</td>
 		</tr>
 		
 		</table>

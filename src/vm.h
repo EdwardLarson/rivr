@@ -113,10 +113,12 @@ Data* access_register(PCType pc, const Thread* th);
 Data access_constant(PCType pc, const Thread* th);
 
 // function which performs actual execution of code
-
 void run_thread(Thread* th);
+
 Rivr_String* read_into_string(FILE* fp);
 byte read_into_bool(FILE* fp);
+long int pow_num(long int b, long int e);
+double pow_rat(double b, double e);
 
 // function semantics:
 // f(arg0, ... ):<expression> returns an anonymous function
