@@ -53,8 +53,7 @@
 	(opcode == I_LSH) | \
 	(opcode == I_LT) | \
 	(opcode == I_M_ALLOC) | \
-	(opcode == I_M_FREE) | \
-	(opcode == I_M_STORE) | \
+	(opcode == I_M_LOAD) | \
 	(opcode == I_MOD) | \
 	(opcode == I_MOVE) | \
 	(opcode == I_MUL) | \

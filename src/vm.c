@@ -255,7 +255,8 @@ void run_thread(Thread* th){
 		subop = get_subop(op);
 		
 		#ifdef DEBUG
-		printf("Opcode[%x], Subop[%x]\n", opcode, subop);
+		printf("\tpc[%lu]\n", th->pc);
+		printf("\tOpcode[%x], Subop[%x]\n", opcode, subop);
 		#endif
 		
 		pc_next += 2;
@@ -428,6 +429,8 @@ void run_thread(Thread* th){
 			pc_next += 1;
 			
 			result.n = args[0].n - 1;
+			
+			break;
 			
 		case I_DEV:
 			switch(subop){
@@ -630,6 +633,7 @@ void run_thread(Thread* th){
 			pc_next += 1;
 			
 			result.n = args[0].n + 1;
+			break;
 			
 		case I_INPUT:
 			args[0] = *access_register(pc_next, th);
@@ -779,22 +783,54 @@ void run_thread(Thread* th){
 			
 		case I_M_ALLOC:
 			switch(subop){
-				
+				case SO_REGISTER:
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.p = calloc(args[0].n, sizeof(Data));
+					break;
+				case SO_CONSTANT:
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					#ifdef DEBUG
+					printf("\tallocating array with length %ld\n", args[0].n);
+					#endif
+					
+					result.p = calloc(args[0].n, sizeof(Data));
+					break;
 				default:
 					break;
 			}
 			break;
 			
 		case I_M_FREE:
-			switch(subop){
-				
-				default:
-					break;
-			}
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			free(args[0].p);
 			break;
 			
 		case I_M_LOAD:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
+				case SO_REGISTER:
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result = ( (Data*) args[0].p )[ args[1].n ];
+					
+					break;
+					
+				case SO_CONSTANT:
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result = ( (Data*) args[0].p )[ args[1].n ];
+					
+					break;
 				
 				default:
 					break;
@@ -802,7 +838,57 @@ void run_thread(Thread* th){
 			break;
 			
 		case I_M_STORE:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
 			switch(subop){
+				case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[2] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					( (Data*) args[0].p )[ args[2].n ] = args[1];
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_CONSTANT, SO_NONE):
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					args[2] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					#ifdef DEBUG
+					printf("\tpreparing to store to %p with offset %ld\n", args[0].p, args[2].n);
+					#endif
+					
+					( (Data*) args[0].p )[ args[2].n ] = args[1];
+					
+					#ifdef DEBUG
+					printf("\tstored\n");
+					#endif
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_REGISTER, SO_NONE):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[2] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					( (Data*) args[0].p )[ (size_t) args[2].n ] = args[1];
+					
+					break;
+					
+				case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_CONSTANT, SO_NONE):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[2] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					( (Data*) args[0].p )[ args[2].n ] = args[1];
+					
+					break;
 				
 				default:
 					break;
@@ -917,7 +1003,7 @@ void run_thread(Thread* th){
 		case I_NOOP:
 			
 			#ifdef DEBUG
-			printf("\tNo-op\n");
+			printf("\tNo-op, pc_next = %lu\n", pc_next);
 			#endif
 		
 			switch(subop){
@@ -932,6 +1018,8 @@ void run_thread(Thread* th){
 				default:
 					break;
 			}
+			
+			break;
 			
 		case I_OR:
 			args[0] = *access_register(pc_next, th);
@@ -1312,9 +1400,6 @@ void run_thread(Thread* th){
 			pc_next += 1;
 		}
 		
-		#ifdef DEBUG
-		printf("\tpc at <%lu>\n", th->pc);
-		#endif
 		
 		th->pc = pc_next;
 	}

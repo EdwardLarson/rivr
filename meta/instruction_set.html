@@ -1078,13 +1078,30 @@
 		
 		<tr>
 		<td>
+			CONST_SIZE
 		</td>
 		<td>
-			
+			Allocate an array of a constant Number #size and store a pointer in $dest
 		</td>
 		<td><ul>
+			<li>#size</li>
+			<li>$dest</li>
 		</ul></td>
-		<td></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			DYN_SIZE
+		</td>
+		<td>
+			Allocate an array of a dynamic Number $size and store a pointer in $dest
+		</td>
+		<td><ul>
+			<li>$size</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>4</td>
 		</tr>
 		
 		</table>
@@ -1105,13 +1122,15 @@
 		
 		<tr>
 		<td>
+			None
 		</td>
 		<td>
-			
+			Free block stored at $block
 		</td>
 		<td><ul>
+			<li>$block</li>
 		</ul></td>
-		<td></td>
+		<td>3</td>
 		</tr>
 		
 		</table>
@@ -1132,13 +1151,32 @@
 		
 		<tr>
 		<td>
+			DYN_OFFSET
 		</td>
 		<td>
-			
+			Load from $block at Number variable $offset to $dest
 		</td>
 		<td><ul>
+			<li>$block</li>
+			<li>$offset</li>
+			<li>$dest</li>
 		</ul></td>
-		<td></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			CONST_OFFSET
+		</td>
+		<td>
+			Load from $block at Number constant #offset to $dest
+		</td>
+		<td><ul>
+			<li>$block</li>
+			<li>#offset</li>
+			<li>$dest</li>
+		</ul></td>
+		<td>12</td>
 		</tr>
 		
 		</table>
@@ -1159,13 +1197,62 @@
 		
 		<tr>
 		<td>
+			REG_SRC_DYN_OFFSET
 		</td>
 		<td>
-			
+			Store from $src to $block at Number variable $offset
 		</td>
 		<td><ul>
+			<li>$block</li>
+			<li>$src</li>
+			<li>$offset</li>
 		</ul></td>
-		<td></td>
+		<td>5</td>
+		</tr>
+		
+		<tr>
+		<td>
+			REG_SRC_CONST_OFFSET
+		</td>
+		<td>
+			Store from $src to $block at Number constant $offset
+		</td>
+		<td><ul>
+			<li>$block</li>
+			<li>$src</li>
+			<li>#offset</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		<tr>
+		<td>
+			CONST_SRC_DYN_OFFSET
+		</td>
+		<td>
+			Store from #src to $block at Number variable $offset
+		</td>
+		<td><ul>
+			<li>$block</li>
+			<li>#src</li>
+			<li>$offset</li>
+		</ul></td>
+		<td>12</td>
+		</tr>
+		
+		<tr>
+		<td>
+			CONST_SRC_CONST_OFFSET
+		</td>
+		<td>
+			Store from #src to $block at Number constant #offset
+		</td>
+		<td><ul>
+			<li>$block</li>
+			<li>#src</li>
+			<li>#offset</li>
+		</ul></td>
+		<td>19</td>
 		</tr>
 		
 		</table>
