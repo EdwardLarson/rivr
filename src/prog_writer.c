@@ -13,17 +13,20 @@ int write_opcode(byte* prog, int pc, Operation op);
 int write_register(byte* prog, int pc, int reg_id, int r_type);
 int write_constant(byte* prog, int pc, Data data);
 
+void record_pc(byte* prog, int pc, int* refs, int nrefs);
+
 int write_noops_halt(byte* prog);
 int write_addition(byte* prog);
 int write_input(byte* prog);
 int write_memory(byte* prog);
 int write_pow(byte* prog);
+int write_branch(byte* prog);
 
 
 int main(int argc, char** argv){
-	int proglen = write_pow(NULL);
+	int proglen = write_branch(NULL);
 	byte* prog = calloc(proglen, sizeof(byte));
-	int actual_proglen = write_pow(prog);
+	int actual_proglen = write_branch(prog);
 	
 	printf("proglen initially counted as %d, was %d when writing\n", proglen, actual_proglen);
 	
@@ -480,6 +483,107 @@ int write_pow(byte* prog){
 	return pc;
 }
 
+int write_branch(byte* prog){
+	int pc = 0;
+	Operation copy_op = encode_operation(I_MOVE, SO_REGISTER);
+	Operation num_input_op = encode_operation(I_INPUT, SO_NUMBER);
+	Operation gt_op = encode_operation(I_GT, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation branch_op = encode_operation(I_BRANCH, SO_NONE);
+	Operation cons_str_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_CONSTANT, SO_STRING));
+	Operation incr_op = encode_operation(I_INCR, SO_NONE);
+	Operation jump_op = encode_operation(I_JUMP, SO_ABSOLUTE);
+	Operation num_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
+	Operation halt_op = encode_operation(I_HALT, SO_NONE);
+	
+	Data str_greater_than_one;
+	str_greater_than_one.bytes[0] = '>';
+	str_greater_than_one.bytes[1] = '1';
+	str_greater_than_one.bytes[2] = '\n';
+	str_greater_than_one.bytes[3] = '\0';
+	
+	Data str_finished;
+	str_finished.bytes[0] = 'f';
+	str_finished.bytes[1] = 'i';
+	str_finished.bytes[2] = 'n';
+	str_finished.bytes[3] = '\n';
+	str_finished.bytes[4] = '\0';
+	
+	Data str_newline;
+	str_newline.bytes[0] = '\n';
+	str_newline.bytes[1] = '\0';
+	
+	int label_input_loop_loc;
+	int label_input_loop_ref;
+	int label_else_loc;
+	int label_else_ref;
+	
+	// MOVE $!0 > $0
+	pc = write_opcode(prog, pc, copy_op);
+	pc = write_register(prog, pc, 0, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// :INPUT_LOOP:
+	label_input_loop_loc = pc;
+	
+	// INPUT $!3 > $1
+	pc = write_opcode(prog, pc, num_input_op);
+	pc = write_register(prog, pc, 3, REG_SPEC);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// GT $1 $!1 > $2
+	pc = write_opcode(prog, pc, gt_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_SPEC);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// BRANCH $2 :ELSE:
+	pc = write_opcode(prog, pc, branch_op);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	label_else_ref = pc;
+	pc += sizeof(Data);
+	
+	// OUTPUT $!2 ">1\n"
+	pc = write_opcode(prog, pc, cons_str_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, str_greater_than_one);
+	
+	// INCR $0 > $0
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// JUMP :INPUT_LOOP:
+	pc = write_opcode(prog, pc, jump_op);
+	label_input_loop_ref = pc;
+	pc += sizeof(Data);
+	
+	// :ELSE:
+	label_else_loc = pc;
+	
+	// OUTPUT $!2 "fin\n"
+	pc = write_opcode(prog, pc, cons_str_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, str_finished);
+	
+	// OUTPUT $!2 $0
+	pc = write_opcode(prog, pc, num_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// OUTPUT $!2 "\n"
+	pc = write_opcode(prog, pc, cons_str_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, str_newline);
+	
+	// HALT
+	pc = write_opcode(prog, pc, halt_op);
+	
+	record_pc(prog, label_else_loc, &label_else_ref, 1);
+	record_pc(prog, label_input_loop_loc, &label_input_loop_ref, 1);
+	
+	return pc;
+}
+
 
 int write_opcode(byte* prog, int pc, Operation op){
 	
@@ -537,4 +641,13 @@ int write_constant(byte* prog, int pc, Data data){
 	}
 	
 	return pc + sizeof(Data);
+}
+
+void record_pc(byte* prog, int pc, int* refs, int nrefs){
+	Data location;
+	location.f = (PCType) pc;
+	int i;
+	for (i = 0; i < nrefs; i++){
+		write_constant(prog, refs[i], location);
+	}
 }

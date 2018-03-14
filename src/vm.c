@@ -412,17 +412,6 @@ void* run_thread(void* th_in){
 			}
 			break;
 			
-		case I_BRANCH:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			if (args[0].b){
-				args[1] = access_constant(pc_next, th);
-				pc_next = args[1].f;
-			}else{
-				pc_next += sizeof(Data);
-			}
-			break;
-			
 		case I_BITWISE:
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -456,6 +445,17 @@ void* run_thread(void* th_in){
 					
 				default:
 					break;
+			}
+			break;
+			
+		case I_BRANCH:
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			if (args[0].b){
+				pc_next += sizeof(Data);
+			}else{
+				args[1] = access_constant(pc_next, th);
+				pc_next = args[1].f;
 			}
 			break;
 			
