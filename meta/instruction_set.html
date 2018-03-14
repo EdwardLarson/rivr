@@ -2068,7 +2068,7 @@
 	
 	<tr>
 	<td>I_TH_NEW</td>
-	<td>Spawn new thread</td>
+	<td>Spawn new thread, which begins execution at a specified address. Returns thread identifier.</td>
 	<td>
 		<table border="1px solid gray" width="100%">
 		<tr>
@@ -2080,13 +2080,30 @@
 		
 		<tr>
 		<td>
+			VARIABLE_JUMP
 		</td>
 		<td>
-			
+			Start execution at the address stored in $addr
 		</td>
 		<td><ul>
+			<li>$addr</li>
+			<li>$thread</li>
 		</ul></td>
-		<td></td>
+		<td>4</td>
+		</tr>
+		
+		<tr>
+		<td>
+			CONSTANT_JUMP
+		</td>
+		<td>
+			Start execution at the address written at #addr
+		</td>
+		<td><ul>
+			<li>#addr</li>
+			<li>$thread</li>
+		</ul></td>
+		<td>11</td>
 		</tr>
 		
 		</table>
@@ -2107,13 +2124,15 @@
 		
 		<tr>
 		<td>
+			None
 		</td>
 		<td>
-			
+			Wait for thread identifier at $thread
 		</td>
 		<td><ul>
+			<li>$thread</li>
 		</ul></td>
-		<td></td>
+		<td>3</td>
 		</tr>
 		
 		</table>
@@ -2134,11 +2153,13 @@
 		
 		<tr>
 		<td>
+			None
 		</td>
 		<td>
-			
+			Order thread identifier at $thread to cease execution
 		</td>
 		<td><ul>
+			<li>$thread</li>
 		</ul></td>
 		<td></td>
 		</tr>

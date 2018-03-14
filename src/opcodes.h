@@ -62,6 +62,7 @@
 	(opcode == I_POW) | \
 	(opcode == I_RSH) | \
 	(opcode == I_SUB) | \
+	(opcode == I_TH_NEW) | \
 	(opcode == I_XOR) \
 )
 

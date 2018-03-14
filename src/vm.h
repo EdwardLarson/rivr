@@ -1,13 +1,16 @@
 #include <malloc.h>
+#include <pthread.h>
 
 #include "rv_strings.h"
 #include "opcodes.h"
 
 #define FRAME_STACK_SIZE 256
 
+#define TH_STAT_KILLED -2
 #define TH_STAT_FIN -1
 #define TH_STAT_WAIT 0
 #define TH_STAT_RDY 1
+#define TH_STAT_RUN 2
 
 #define CLEAR_DATA(data) data.n = 0;
 
@@ -89,6 +92,7 @@ void init_spec_registers(Data* registers);
 Register_Frame* next_free_frame(Register_File* rf);
 
 Register_Frame* alloc_frame(Register_File* rf, Register_Frame* prv);
+void dealloc_frames(Register_Frame* init_frame, Register_File* rf);
 
 // multiple threads may run concurrently
 // threads share a register file, but have separate framestacks
@@ -103,9 +107,13 @@ typedef struct Thread_ {
 	PCType prog_len;
 	
 	int status;
+	
+	pthread_t tid;
 } Thread;
 
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start);
+Thread* fork_Thread(const Thread* parent, PCType pc_start);
+
 void push_frame(Thread* th);
 void pop_frame(Thread* th);
 
@@ -113,7 +121,7 @@ Data* access_register(PCType pc, const Thread* th);
 Data access_constant(PCType pc, const Thread* th);
 
 // function which performs actual execution of code
-void run_thread(Thread* th);
+void* run_thread(void* th_in);
 
 Rivr_String* read_into_string(FILE* fp);
 byte read_into_bool(FILE* fp);

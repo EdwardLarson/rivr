@@ -99,6 +99,26 @@ Register_Frame* alloc_frame(Register_File* rf, Register_Frame* prv){
 	return frame;
 }
 
+void dealloc_frames(Register_Frame* init_frame, Register_File* rf){
+	if (!init_frame) return;
+	
+	while (init_frame->prv_frame){
+		init_frame = init_frame->prv_frame;
+	}
+	
+	Register_Frame* tmp;
+	while(init_frame){
+		tmp = init_frame->nxt_frame;
+		if ( (init_frame >= rf->frames) && (init_frame < &(rf->frames[FRAME_STACK_SIZE - 1]) ) ){
+			// frame is within bounds of register file's frame stack
+			// no need to deallocate, will be freed when register file is
+		}else{
+			free(init_frame);
+		}
+		init_frame = tmp;
+	}
+}
+
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start){
 	th->rf = rf;
 	
@@ -112,6 +132,8 @@ void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_le
 	th->pc = pc_start;
 	
 	th->status = TH_STAT_RDY;
+	
+	th->tid = pthread_self();
 }
 
 void init_spec_registers(Data* registers){
@@ -136,6 +158,30 @@ void init_spec_registers(Data* registers){
 	// $!3 = stderr
 	data.n = (long int) stderr;
 	registers[3] = data;
+}
+
+Thread* fork_Thread(const Thread* parent, PCType pc_start){
+	Thread* th = malloc(sizeof(Thread));
+	
+	th->rf = parent->rf;
+	
+	th->frame = alloc_frame(th->rf, NULL);
+	th->frame->nxt_frame = alloc_frame(th->rf, th->frame);
+	
+	th->prog = parent->prog;
+	th->pc = pc_start;
+	th->prog_len = parent->prog_len;
+	
+	th->status = TH_STAT_RDY;
+	
+	int errno = pthread_create(&th->tid, NULL, run_thread, th);
+	if (errno){
+		printf("Error: Unable to create thread\n");
+		return NULL;
+	}
+	pthread_detach(th->tid);
+	
+	return th;
 }
 
 void push_frame(Thread* th){
@@ -236,7 +282,8 @@ Data access_constant(PCType pc, const Thread* th){
 	return data;
 }
 
-void run_thread(Thread* th){
+void* run_thread(void* th_in){
+	Thread* th = (Thread*) th_in;
 	Operation op;
 	byte opcode;
 	byte subop;
@@ -250,6 +297,7 @@ void run_thread(Thread* th){
 		CLEAR_DATA(result);
 		
 		pc_next = th->pc;
+		th->status = TH_STAT_RUN;
 		
 		op = read_op(th->prog, th->pc);
 		opcode = get_opcode(op);
@@ -1339,26 +1387,47 @@ void run_thread(Thread* th){
 			
 		case I_TH_NEW:
 			switch(subop){
-				
+				case SO_REGISTER:
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.t = fork_Thread(th, args[0].f);
+					break;
+					
+				case SO_CONSTANT:
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.t = fork_Thread(th, args[0].f);
+					break;
+					
 				default:
 					break;
 			}
 			break;
 			
 		case I_TH_JOIN:
-			switch(subop){
-				
-				default:
-					break;
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			if (pthread_join(args[0].t->tid, NULL)){
+				printf("Error: Unable to join thread\n");
 			}
+			
 			break;
 			
 		case I_TH_KILL:
-			switch(subop){
-				
-				default:
-					break;
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			th->status = TH_STAT_KILLED;
+			if (pthread_join(args[0].t->tid, NULL)){
+				printf("Error: Unable to join thread\n");
+			}else{
+				dealloc_frames(args[0].t->frame, args[0].t->rf);
+				free(args[0].t);
 			}
+			
 			break;
 			
 		case I_XOR:
@@ -1406,6 +1475,8 @@ void run_thread(Thread* th){
 	}
 	
 	
+	
+	return NULL;
 }
 
 Rivr_String* read_into_string(FILE* fp){
