@@ -17,12 +17,13 @@ int write_noops_halt(byte* prog);
 int write_addition(byte* prog);
 int write_input(byte* prog);
 int write_memory(byte* prog);
+int write_pow(byte* prog);
 
 
 int main(int argc, char** argv){
-	int proglen = write_memory(NULL);
+	int proglen = write_pow(NULL);
 	byte* prog = calloc(proglen, sizeof(byte));
-	int actual_proglen = write_memory(prog);
+	int actual_proglen = write_pow(prog);
 	
 	printf("proglen initially counted as %d, was %d when writing\n", proglen, actual_proglen);
 	
@@ -358,6 +359,123 @@ int write_memory(byte* prog){
 	// HALT
 	pc = write_opcode(prog, pc, halt_op);
 	
+	
+	return pc;
+}
+
+int write_pow(byte* prog){
+	int pc = 0;
+	
+	Operation npow_op = encode_operation(I_POW, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation rpow_op = encode_operation(I_POW, FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation load_op = encode_operation(I_MOVE, SO_CONSTANT);
+	Operation increment_op = encode_operation(I_INCR, SO_NONE);
+	Operation num_print_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
+	Operation rat_print_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_RATIONAL));
+	Operation nwl_print_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_CONSTANT, SO_STRING));
+	Operation halt_op = encode_operation(I_HALT, SO_NONE);
+	
+	Data newline;
+	newline.bytes[0] = '\n';
+	newline.bytes[1] = '\0';
+	
+	Data done;
+	done.bytes[0] = 'D';
+	done.bytes[1] = 'o';
+	done.bytes[2] = 'n';
+	done.bytes[3] = 'e';
+	done.bytes[4] = '\0';
+	
+	Data onef;
+	onef.d = 1.0D;
+	
+	Data twof;
+	twof.d = 2.0D;
+	
+	Data threef;
+	threef.d = -3.0D;
+	
+	
+	// INCR $!1 > $0
+	pc = write_opcode(prog, pc, increment_op);
+	pc = write_register(prog, pc, 1, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// INCR $0 > $1
+	pc = write_opcode(prog, pc, increment_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// POW $0 $1 > $2
+	pc = write_opcode(prog, pc, npow_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// OUTPUT $!2 $2
+	pc = write_opcode(prog, pc, num_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// OUTPUT $!2 '\n'
+	pc = write_opcode(prog, pc, nwl_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, newline);
+	
+	// MOVE twof > $0
+	pc = write_opcode(prog, pc, load_op);
+	pc = write_constant(prog, pc, twof);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// MOVE onef > $1
+	pc = write_opcode(prog, pc, load_op);
+	pc = write_constant(prog, pc, onef);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// POW $0 $1 > $2
+	pc = write_opcode(prog, pc, rpow_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// OUTPUT $!2 $2
+	pc = write_opcode(prog, pc, rat_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// OUTPUT $!2 '\n'
+	pc = write_opcode(prog, pc, nwl_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, newline);
+	
+	// MOVE threef > $1
+	pc = write_opcode(prog, pc, load_op);
+	pc = write_constant(prog, pc, threef);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// POW $0 $1 > $2
+	pc = write_opcode(prog, pc, rpow_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// OUTPUT $!2 $2
+	pc = write_opcode(prog, pc, rat_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// OUTPUT $!2 '\n'
+	pc = write_opcode(prog, pc, nwl_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, newline);
+	
+	// OUTPUT $!2 "Done"
+	pc = write_opcode(prog, pc, nwl_print_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, done);
+	
+	// HALT 
+	pc = write_opcode(prog, pc, halt_op);
 	
 	return pc;
 }

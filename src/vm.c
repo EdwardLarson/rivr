@@ -1,5 +1,6 @@
 #include "vm.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <malloc.h>
 
@@ -1195,7 +1196,7 @@ void run_thread(Thread* th){
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
 					
-					result.d = pow_rat(args[0].n, args[1].n);
+					result.d = pow_rat(args[0].d, args[1].d);
 					
 					break;
 					
@@ -1205,7 +1206,7 @@ void run_thread(Thread* th){
 					args[1] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
 					
-					result.d = pow_rat(args[0].n, args[1].n);
+					result.d = pow_rat(args[0].d, args[1].d);
 					
 					break;
 					
@@ -1215,7 +1216,7 @@ void run_thread(Thread* th){
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
 					
-					result.d = pow_rat(args[0].n, args[1].n);
+					result.d = pow_rat(args[0].d, args[1].d);
 					
 					break;
 					
@@ -1450,12 +1451,12 @@ long int pow_num(long int b, long int e){
 }
 
 double pow_rat(double b, double e){
-	// TO-DO: Make an actual pow function
-	double result = b;
-	while (e >= 1){
-		result *= result;
-		e /= 2;
-	}
 	
-	return result;
+	double natural_exp = e * log(b);
+	
+	#ifdef DEBUG
+	printf("\t%lf ^ %lf: natural_exp=%lf\n", b, e, natural_exp);
+	#endif
+	
+	return exp(natural_exp);
 }
