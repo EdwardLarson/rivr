@@ -165,6 +165,15 @@ void init_spec_registers(Data* registers){
 }
 
 Thread* fork_Thread(const Thread* parent, PCType pc_start){
+	Thread* th = create_child_Thread(parent, pc_start);
+	
+	start_Thread(th);
+	
+	return th;
+	
+}
+	
+Thread* create_child_Thread(const Thread* parent, PCType pc_start){
 	Thread* th = malloc(sizeof(Thread));
 	
 	th->rf = parent->rf;
@@ -179,14 +188,16 @@ Thread* fork_Thread(const Thread* parent, PCType pc_start){
 	
 	th->status = TH_STAT_RDY;
 	
+	return th;
+}
+
+void start_Thread(Thread* th){
 	int err = pthread_create(&th->tid, NULL, run_thread, th);
 	if (err){
 		printf("Error: Unable to create thread\n");
-		return NULL;
 	}
-	
-	return th;
 }
+
 
 void teardown_Thread(Thread* th){
 	dealloc_frames(th->frame, th->rf);
@@ -481,7 +492,7 @@ void* run_thread(void* th_in){
 				pc_next += sizeof(Data);
 			}else{
 				args[1] = access_constant(pc_next, th);
-				pc_next = args[1].f;
+				pc_next = args[1].addr;
 			}
 			break;
 			
@@ -490,7 +501,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			pc_next = args[0].f;
+			pc_next = load_Function(args[0].f, th);
 		
 			switch(subop){
 				
@@ -505,14 +516,6 @@ void* run_thread(void* th_in){
 			
 			result.n = args[0].n - 1;
 			
-			break;
-			
-		case I_DEV:
-			switch(subop){
-				
-				default:
-					break;
-			}
 			break;
 			
 		case I_DIV:
@@ -740,11 +743,11 @@ void* run_thread(void* th_in){
 		
 			switch(subop){
 				case SO_ABSOLUTE:
-					pc_next = args[0].f;
+					pc_next = args[0].addr;
 					break;
 					
 				case SO_RELATIVE:
-					pc_next = th->pc + args[0].f; // TO-DO: Verify that if .f is written as a signed number that sign will be used here
+					pc_next = th->pc + args[0].addr; // TO-DO: Verify that if .f is written as a signed number that sign will be used here
 					break;
 				
 				default:
@@ -883,7 +886,19 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			free(args[0].p);
+			switch(subop){
+				case SO_OBJECT:
+					free(args[0].p);
+					break;
+					
+				case SO_STRING:
+					string_destroy(args[0].s);
+					break;
+					
+				default:
+					break;
+			}
+			
 			break;
 			
 		case I_M_LOAD:
@@ -1153,7 +1168,7 @@ void* run_thread(void* th_in){
 				case FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
-					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].f);
+					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].addr);
 					break;
 				case FORMAT2_SUBOP(SO_REGISTER, SO_BOOLEAN):
 					args[1] = *access_register(pc_next, th);
@@ -1198,7 +1213,7 @@ void* run_thread(void* th_in){
 				case FORMAT2_SUBOP(SO_CONSTANT, SO_FUNCTION):
 					args[1] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].f);
+					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].addr);
 					break;
 				case FORMAT2_SUBOP(SO_CONSTANT, SO_BOOLEAN):
 					args[1] = access_constant(pc_next, th);
@@ -1233,6 +1248,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_POW:
+			// Note: Power function is undefined for negative exponents
 			switch(subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
@@ -1417,14 +1433,24 @@ void* run_thread(void* th_in){
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
 					
-					result.t = fork_Thread(th, args[0].f);
+					result.t = fork_Thread(th, args[0].addr);
 					break;
 					
 				case SO_CONSTANT:
 					args[0] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
 					
-					result.t = fork_Thread(th, args[0].f);
+					result.t = fork_Thread(th, args[0].addr);
+					break;
+					
+				case SO_FUNCTION:
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					result.t = create_child_Thread(th, args[0].f->addr);
+					load_Function(args[0].f, result.t);
+					start_Thread(result.t);
+					
 					break;
 					
 				default:
@@ -1537,7 +1563,7 @@ byte read_into_bool(FILE* fp){
 }
 
 long int pow_num(long int b, long int e){
-	// TO-DO: account for negative numbers?
+	
 	if (e <= 0) return 1;
 	
 	long int result = b;

@@ -2,7 +2,9 @@
 #include <pthread.h>
 
 #include "rv_strings.h"
+#include "rv_functions.h"
 #include "opcodes.h"
+#include "rv_types.h"
 
 #define FRAME_STACK_SIZE 256
 
@@ -15,9 +17,7 @@
 #define CLEAR_DATA(data) data.n = 0;
 
 
-typedef unsigned char byte;
 
-typedef unsigned long PCType;
 
 // opcodes are 6 bits (64 possible) in length
 // subop is 4 bits (32 possible) in length
@@ -42,8 +42,6 @@ Operation encode_operation(byte opcode, byte subop);
 // data is stored as a union
 // size is 64 bits (8 bytes)
 
-struct Thread_;
-
 typedef union Data_
 {
 	long int n; // 64 bit number: Number / num
@@ -51,9 +49,11 @@ typedef union Data_
 	void* p; // pointer to arbitrary data: Object
 	Rivr_String* s; // pointer to some string data: String
 	struct Thread_* t; // pointer to some thread data: Thread
-	PCType f; // pointer to some function data: Function / f
+	struct Function_* f; // pointer to some function data: Function / f
 	byte b; // boolean value: Boolean / bool
 	void* h; // pointer to a hash table
+	
+	PCType addr; // not an actual data type, but useful for jump/branch constants
 	
 	byte bytes[8];
 } Data;
@@ -115,6 +115,8 @@ typedef struct Thread_ {
 
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start);
 Thread* fork_Thread(const Thread* parent, PCType pc_start);
+Thread* create_child_Thread(const Thread* parent, PCType pc_start);
+void start_Thread(Thread* th);
 void teardown_Thread(Thread* th);
 
 void push_frame(Thread* th);
@@ -130,22 +132,5 @@ Rivr_String* read_into_string(FILE* fp);
 byte read_into_bool(FILE* fp);
 long int pow_num(long int b, long int e);
 double pow_rat(double b, double e);
-
-// function semantics:
-// f(arg0, ... ):<expression> returns an anonymous function
-// very similar to " \(args) . (expression)"
-
-// f name(arg0, ... ) returns <expression>
-// f name(arg0, ... ) returns <type>: <expression-block>
-// both define functions in the current space
-
-typedef struct Function_ {
-	PCType pc;
-	
-	Register_Frame state;
-	
-	
-	
-} Function;
 
 
