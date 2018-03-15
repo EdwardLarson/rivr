@@ -639,14 +639,14 @@ void* run_thread(void* th_in){
 		case I_F_CREATE:
 			switch(subop){
 				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_INPLACE):
-					result.f = create_Function(pc_next + 1, -1);
+					result.f = create_Function(pc_next + 1, 0);
 					
 					break;
 					
 				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_ABSOLUTE):
 					args[0] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
-					result.f = create_Function(args[0].addr, -1);
+					result.f = create_Function(args[0].addr, 0);
 					
 					break;
 					
@@ -672,6 +672,22 @@ void* run_thread(void* th_in){
 					
 					result.f = create_Function(args[1].addr, (int) args[0].b);
 					
+					
+					for (int i = 0; i < args[0].b; i++){
+						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
+						pc_next += 1;
+					}
+					
+					break;
+					
+				case SO_FROMFUNC:
+					args[1] = *access_register(pc_next, th);
+					pc_next += 1;
+					
+					args[0].b = read_byte(pc_next, th);
+					pc_next += 1;
+					
+					result.f = copy_Function(args[1].f);
 					
 					for (int i = 0; i < args[0].b; i++){
 						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
