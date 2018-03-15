@@ -317,6 +317,10 @@ Data access_constant(PCType pc, const Thread* th){
 	return data;
 }
 
+byte read_byte(PCType pc, const Thread* th){
+	return th->prog[pc];
+}
+
 void* run_thread(void* th_in){
 	Thread* th = (Thread*) th_in;
 	Operation op;
@@ -496,20 +500,6 @@ void* run_thread(void* th_in){
 			}
 			break;
 			
-		case I_CALL:
-			
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			pc_next = load_Function(args[0].f, th);
-		
-			switch(subop){
-				
-				default:
-					break;
-			}
-			break;
-			
 		case I_DECR:
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -628,6 +618,66 @@ void* run_thread(void* th_in){
 					break;
 					
 				default:
+					break;
+			}
+			break;
+			
+		case I_F_CALL:
+			
+			args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+			
+			pc_next = load_Function(args[0].f, th);
+		
+			switch(subop){
+				
+				default:
+					break;
+			}
+			break;
+			
+		case I_F_CREATE:
+			switch(subop){
+				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_INPLACE):
+					result.f = create_Function(pc_next + 1, -1);
+					
+					break;
+					
+				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_ABSOLUTE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					result.f = create_Function(args[0].addr, -1);
+					
+					break;
+					
+				case FORMAT4_SUBOP(SO_CLOSURE, SO_INPLACE):
+					args[0].b = read_byte(pc_next, th);
+					pc_next += 1;
+					
+					result.f = create_Function(pc_next + 1 + args[0].b, (int) args[0].b);
+					
+					for(int i = 0; i < args[0].b; i++){
+						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
+						pc_next += 1;
+					}
+					
+					break;
+					
+				case FORMAT4_SUBOP(SO_CLOSURE, SO_ABSOLUTE):
+					args[1] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					args[0].b = read_byte(pc_next, th);
+					pc_next += 1;
+					
+					result.f = create_Function(args[1].addr, (int) args[0].b);
+					
+					
+					for (int i = 0; i < args[0].b; i++){
+						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
+						pc_next += 1;
+					}
+					
 					break;
 			}
 			break;
@@ -1347,14 +1397,6 @@ void* run_thread(void* th_in){
 					
 					break;
 					
-				default:
-					break;
-			}
-			break;
-			
-		case I_SAVEFRAME:
-			switch(subop){
-				
 				default:
 					break;
 			}

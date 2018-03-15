@@ -124,6 +124,7 @@ void pop_frame(Thread* th);
 
 Data* access_register(PCType pc, const Thread* th);
 Data access_constant(PCType pc, const Thread* th);
+byte read_byte(PCType pc, const Thread* th);
 
 // function which performs actual execution of code
 void* run_thread(void* th_in);

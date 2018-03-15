@@ -342,35 +342,6 @@
 	</tr>
 	
 	<tr>
-	<td>I_CALL</td>
-	<td>Call a function</td>
-	<td>
-		<table border="1px solid gray" width="100%">
-		<tr>
-		<th>NAME</th>
-		<th>DESCRIPTION</th>
-		<th>ARGS</th>
-		<th>BYTES</th>
-		</tr>
-		
-		<tr>
-		<td>
-			NONE
-		</td>
-		<td>
-			Jump to $address
-		</td>
-		<td><ul>
-			<li>$address</li>
-		</ul></td>
-		<td>3</td>
-		</tr>
-		
-		</table>
-	</td>
-	</tr>
-	
-	<tr>
 	<td>I_DECR</td>
 	<td>Increment an integer</td>
 	<td>
@@ -608,6 +579,109 @@
 		</ul></td>
 		<td>12</td>
 		</tr>
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_F_CALL</td>
+	<td>Call a function</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NONE
+		</td>
+		<td>
+			Jump to $address
+		</td>
+		<td><ul>
+			<li>$address</li>
+		</ul></td>
+		<td>3</td>
+		</tr>
+		
+		</table>
+	</td>
+	</tr>
+	
+	<tr>
+	<td>I_F_CREATE</td>
+	<td>Create a function primitive. May include data in a closure.</td>
+	<td>
+		<table border="1px solid gray" width="100%">
+		<tr>
+		<th>NAME</th>
+		<th>DESCRIPTION</th>
+		<th>ARGS</th>
+		<th>BYTES</th>
+		</tr>
+		
+		<tr>
+		<td>
+			NO_CLOSURE_IN_PLACE
+		</td>
+		<td>
+			Create a Function pointing to the instruction after this one. Store at $funct.
+		</td>
+		<td><ul>
+			<li>$funct</li>
+		</ul></td>
+		<td>3</td>
+		</tr>
+		
+		<tr>
+		<td>
+			NO_CLOSURE_ABSOLUTE
+		</td>
+		<td>
+			Create a Function pointing to an arbitrary instruction. Store at $funct.
+		</td>
+		<td><ul>
+			<li>#addr</li>
+			<li>$funct</li>
+		</ul></td>
+		<td>11</td>
+		</tr>
+		
+		<tr>
+		<td>
+			CLOSURE_IN_PLACE
+		</td>
+		<td>
+			Create a Function pointing to the instruction after this one, incorporating %ndata primitives into the closure. Store at $funct.
+		</td>
+		<td><ul>
+			<li>%ndata</li>
+			<li>$reg0...</li>
+			<li>$funct</li>
+		</ul></td>
+		<td>5+</td>
+		</tr>
+		
+		<tr>
+		<td>
+			CLOSURE_ABSOLUTE
+		</td>
+		<td>
+			Create a Function pointing to an arbitrary instruction, incorporating %ndata primitives into the closure. Store at $funct.
+		</td>
+		<td><ul>
+			<li>#addr</li>
+			<li>%ndata</li>
+			<li>$reg0...</li>
+			<li>$funct</li>
+		</ul></td>
+		<td>13+</td>
+		</tr>
+		
 		</table>
 	</td>
 	</tr>

@@ -2,21 +2,23 @@
 
 #include <malloc.h>
 
-Function* create_Function(PCType f_start){
+Function* create_Function(PCType f_start, int ndata){
 	Function* f = malloc(sizeof(Function));
 	
-	init_Function(f, f_start);
+	init_Function(f, f_start, ndata);
 	
 	return f;
 }
 
-void init_Function(Function* f, PCType f_start){
+void init_Function(Function* f, PCType f_start, int ndata){
 	f->addr = f_start;
 	
-	f->local_data = calloc(4, sizeof(Data));
-	f->registers = calloc(4, sizeof(byte));
+	f->enclosure_size = (ndata > 0)? ndata : 4;
+	
+	f->local_data = calloc(f->enclosure_size, sizeof(Data));
+	f->registers = calloc(f->enclosure_size, sizeof(byte));
 	f->n_enclosed = 0;
-	f->enclosure_size = 4;
+	
 }
 
 void teardown_Function(Function* f){

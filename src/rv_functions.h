@@ -11,8 +11,9 @@ typedef struct Function_ {
 	
 } Function;
 
-Function* create_Function(PCType f_start);
-void init_Function(Function* f, PCType f_start);
+Function* create_Function(PCType f_start, int ndata);
+void init_Function(Function* f, PCType f_start, int ndata);
 void teardown_Function(Function* f);
 
+void enclose_data_Function(Function* f, union Data_* data, byte reg);
 PCType load_Function(const Function* f, struct Thread_* th);
