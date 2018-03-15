@@ -60,9 +60,6 @@ int rivr_run(char** argv, int argi, int argc){
 	// argi points to 'run' command initially
 	argi++;
 	
-	Register_File rfile;
-	init_Register_File(&rfile);
-	
 	byte* mprog = NULL;
 	PCType proglen = 0;
 	
@@ -96,14 +93,17 @@ int rivr_run(char** argv, int argi, int argc){
 	}
 	
 	if (mprog){
-		Thread thread;
-		init_Thread(&thread, &rfile, mprog, proglen, 0);
+		Register_File* rfile = malloc(sizeof(Register_File));
+		init_Register_File(rfile);
+		
+		Thread* thread = malloc(sizeof(Thread));
+		init_Thread(thread, rfile, mprog, proglen, 0);
 		
 		#ifdef DEBUG
 		printf("launching thread\n");
 		#endif
 	
-		run_thread(&thread);
+		run_thread(thread);
 	}else{
 		printf("Error: no input file specificed\n");
 	}

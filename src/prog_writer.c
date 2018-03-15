@@ -21,12 +21,13 @@ int write_input(byte* prog);
 int write_memory(byte* prog);
 int write_pow(byte* prog);
 int write_branch(byte* prog);
+int write_threading(byte* prog);
 
 
 int main(int argc, char** argv){
-	int proglen = write_branch(NULL);
+	int proglen = write_threading(NULL);
 	byte* prog = calloc(proglen, sizeof(byte));
-	int actual_proglen = write_branch(prog);
+	int actual_proglen = write_threading(prog);
 	
 	printf("proglen initially counted as %d, was %d when writing\n", proglen, actual_proglen);
 	
@@ -580,6 +581,110 @@ int write_branch(byte* prog){
 	
 	record_pc(prog, label_else_loc, &label_else_ref, 1);
 	record_pc(prog, label_input_loop_loc, &label_input_loop_ref, 1);
+	
+	return pc;
+}
+
+int write_threading(byte* prog){
+	int pc = 0;
+	
+	Operation cons_str_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_CONSTANT, SO_STRING));
+	Operation incr_op = encode_operation(I_INCR, SO_NONE);
+	Operation halt_op = encode_operation(I_HALT, SO_NONE);
+	Operation fork_op = encode_operation(I_TH_NEW, SO_CONSTANT);
+	Operation jump_op = encode_operation(I_JUMP, SO_ABSOLUTE);
+	Operation str_input_op = encode_operation(I_INPUT, SO_STRING);
+	Operation kill_op = encode_operation(I_TH_KILL, SO_NONE);
+	
+	Data thread1;
+	thread1.bytes[0] = 't';
+	thread1.bytes[1] = 'h';
+	thread1.bytes[2] = 'r';
+	thread1.bytes[3] = '1';
+	thread1.bytes[4] = '\n';
+	thread1.bytes[5] = '\0';
+	
+	Data forked;
+	forked.bytes[0] = 'f';
+	forked.bytes[1] = 'o';
+	forked.bytes[2] = 'r';
+	forked.bytes[3] = 'k';
+	forked.bytes[4] = 'e';
+	forked.bytes[5] = 'd';
+	forked.bytes[6] = '\n';
+	forked.bytes[7] = '\0';
+	
+	Data killed;
+	killed.bytes[0] = 'k';
+	killed.bytes[1] = 'i';
+	killed.bytes[2] = 'l';
+	killed.bytes[3] = 'l';
+	killed.bytes[4] = 'e';
+	killed.bytes[5] = 'd';
+	killed.bytes[6] = '\n';
+	killed.bytes[7] = '\0';
+	
+	int label_loc;
+	int label_ref[2];
+	
+	// OUTPUT $!2 'thr1\n'
+	pc = write_opcode(prog, pc, cons_str_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, thread1);
+	
+	// INCR $!0 > $0
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 0, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// TH_NEW :Thread2: > $1
+	pc = write_opcode(prog, pc, fork_op);
+	label_ref[0] = pc;
+	pc += sizeof(Data);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// OUTPUT $!2 'forked\n'
+	pc = write_opcode(prog, pc, cons_str_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, forked);
+	
+	/*
+	// INPUT $!3 > $2
+	pc = write_opcode(prog, pc, str_input_op);
+	pc = write_register(prog, pc, 3, REG_SPEC);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	*/
+	
+	// TH_KILL $1
+	pc = write_opcode(prog, pc, kill_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// OUTPUT $!2 'killed\n'
+	pc = write_opcode(prog, pc, cons_str_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_constant(prog, pc, killed); 
+	
+	// HALT
+	pc = write_opcode(prog, pc, halt_op);
+	
+	// :Thread2:
+	label_loc = pc;
+	
+	// INCR $!1 > $0
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 1, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// JUMP :Thread2:
+	pc = write_opcode(prog, pc, jump_op);
+	label_ref[1] = pc;
+	pc += sizeof(Data);
+	
+	// HALT
+	pc = write_opcode(prog, pc, halt_op);
+	
+	record_pc(prog, label_loc, label_ref, 2);
+	
 	
 	return pc;
 }

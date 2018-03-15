@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <errno.h>
 
 #ifdef VM_ONLY
 int main(int argc, char** argv){
@@ -61,6 +62,8 @@ int init_Register_File(Register_File* rf){
 		rf->frames[i].prv_frame = NULL;
 		rf->frames[i].used = 0;
 	}
+	
+	rf->references = 0;
 	
 	return 0;
 }
@@ -121,6 +124,7 @@ void dealloc_frames(Register_Frame* init_frame, Register_File* rf){
 
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start){
 	th->rf = rf;
+	th->rf->references += 1;
 	
 	th->frame = alloc_frame(rf, NULL);
 	th->frame->nxt_frame = alloc_frame(rf, th->frame);
@@ -164,6 +168,7 @@ Thread* fork_Thread(const Thread* parent, PCType pc_start){
 	Thread* th = malloc(sizeof(Thread));
 	
 	th->rf = parent->rf;
+	th->rf->references += 1;
 	
 	th->frame = alloc_frame(th->rf, NULL);
 	th->frame->nxt_frame = alloc_frame(th->rf, th->frame);
@@ -174,14 +179,33 @@ Thread* fork_Thread(const Thread* parent, PCType pc_start){
 	
 	th->status = TH_STAT_RDY;
 	
-	int errno = pthread_create(&th->tid, NULL, run_thread, th);
-	if (errno){
+	int err = pthread_create(&th->tid, NULL, run_thread, th);
+	if (err){
 		printf("Error: Unable to create thread\n");
 		return NULL;
 	}
-	pthread_detach(th->tid);
 	
 	return th;
+}
+
+void teardown_Thread(Thread* th){
+	dealloc_frames(th->frame, th->rf);
+	th->rf->references -= 1;
+	
+	if (th->rf->references == 0){
+		#ifdef DEBUG
+		printf("\tFreed register file in thread teardown\n");
+		#endif
+		free (th->rf);
+	}
+	
+	#ifdef DEBUG
+	printf("\tAbout to free th\n");
+	#endif
+	free(th);
+	#ifdef DEBUG
+	printf("\tfreed th\n");
+	#endif
 }
 
 void push_frame(Thread* th){
@@ -292,20 +316,22 @@ void* run_thread(void* th_in){
 	Data args[4]; // temporary storage for up to 4 args
 	Data result;
 	
+	th->status = TH_STAT_RUN;
+	
 	while ((th->status > 0) && (th->pc < th->prog_len)){
 		
 		CLEAR_DATA(result);
 		
 		pc_next = th->pc;
-		th->status = TH_STAT_RUN;
 		
 		op = read_op(th->prog, th->pc);
 		opcode = get_opcode(op);
 		subop = get_subop(op);
 		
 		#ifdef DEBUG
-		printf("\tpc[%lu]\n", th->pc);
-		printf("\tOpcode[%x], Subop[%x]\n", opcode, subop);
+		printf("\tpc[%lu]-", th->pc);
+		printf("Opcode[%x]-Subop[%x]-", opcode, subop);
+		printf("Status[%d]\n", th->status);
 		#endif
 		
 		pc_next += 2;
@@ -1410,8 +1436,8 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			if (pthread_join(args[0].t->tid, NULL)){
-				printf("Error: Unable to join thread\n");
+			if(pthread_join(args[0].t->tid, NULL)){
+				perror("Error: Unable to join thread:");
 			}
 			
 			break;
@@ -1420,12 +1446,10 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			th->status = TH_STAT_KILLED;
+			args[0].t->status = TH_STAT_KILLED;
+			
 			if (pthread_join(args[0].t->tid, NULL)){
-				printf("Error: Unable to join thread\n");
-			}else{
-				dealloc_frames(args[0].t->frame, args[0].t->rf);
-				free(args[0].t);
+				perror("Error: Unable to join thread\n");
 			}
 			
 			break;
@@ -1464,7 +1488,7 @@ void* run_thread(void* th_in){
 		
 		if (HAS_RETURN(opcode)){
 			#ifdef DEBUG
-			printf("\tWriting instruction result to register\n");
+			printf("\tWriting result of <%x> to register\n", opcode);
 			#endif
 			*access_register(pc_next, th) = result;
 			pc_next += 1;
@@ -1474,7 +1498,12 @@ void* run_thread(void* th_in){
 		th->pc = pc_next;
 	}
 	
-	
+	if (th->status < 0){
+		teardown_Thread(th);
+	}else{
+		// status == 0 == TH_STAT_WAIT
+		
+	}
 	
 	return NULL;
 }

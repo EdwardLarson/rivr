@@ -84,6 +84,8 @@ typedef struct Register_File_ {
 	Register_Frame frames[FRAME_STACK_SIZE];
 	Data g_registers[32];
 	Data s_registers[32];
+	
+	int references;
 } Register_File;
 
 int init_Register_File(Register_File* rf);
@@ -113,6 +115,7 @@ typedef struct Thread_ {
 
 void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_len, PCType pc_start);
 Thread* fork_Thread(const Thread* parent, PCType pc_start);
+void teardown_Thread(Thread* th);
 
 void push_frame(Thread* th);
 void pop_frame(Thread* th);
