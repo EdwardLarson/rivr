@@ -33,6 +33,7 @@ void init_Function(Function* f, PCType f_start, int ndata){
 
 Function* copy_Function(const Function* f){
 	Function* f_cpy = malloc(sizeof(Function));
+	f_cpy->addr = f->addr;
 	
 	// Most of the time a function is being copied, it is to add data to enclosure
 	// Risk of repetitive copies requesting larger and larger mallocs
@@ -42,6 +43,10 @@ Function* copy_Function(const Function* f){
 	if (f_cpy->enclosure_size > 0){
 		f_cpy->local_data = calloc(f_cpy->enclosure_size, sizeof(Data));
 		f_cpy->registers = calloc(f_cpy->enclosure_size, sizeof(byte));
+	}else{
+		f_cpy->enclosure_size = 0;
+		f_cpy->local_data = NULL;
+		f_cpy->registers = NULL;
 	}
 	
 	f_cpy->n_enclosed = f->n_enclosed;
