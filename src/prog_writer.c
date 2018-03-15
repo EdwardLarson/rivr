@@ -750,7 +750,7 @@ int write_constant(byte* prog, int pc, Data data){
 
 void record_pc(byte* prog, int pc, int* refs, int nrefs){
 	Data location;
-	location.f = (PCType) pc;
+	location.addr = (PCType) pc;
 	int i;
 	for (i = 0; i < nrefs; i++){
 		write_constant(prog, refs[i], location);
