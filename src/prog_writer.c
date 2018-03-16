@@ -12,6 +12,8 @@
 int write_opcode(byte* prog, int pc, Operation op);
 int write_register(byte* prog, int pc, int reg_id, int r_type);
 int write_constant(byte* prog, int pc, Data data);
+int write_constant_inline(byte* prog, int pc, long int n);
+int write_byte(byte* prog, int pc, byte b);
 
 void record_pc(byte* prog, int pc, int* refs, int nrefs);
 
@@ -22,12 +24,15 @@ int write_memory(byte* prog);
 int write_pow(byte* prog);
 int write_branch(byte* prog);
 int write_threading(byte* prog);
+int write_functions(byte* prog);
+
+int (*progf)(byte*) = write_functions;
 
 
 int main(int argc, char** argv){
-	int proglen = write_threading(NULL);
+	int proglen = progf(NULL);
 	byte* prog = calloc(proglen, sizeof(byte));
-	int actual_proglen = write_threading(prog);
+	int actual_proglen = progf(prog);
 	
 	printf("proglen initially counted as %d, was %d when writing\n", proglen, actual_proglen);
 	
@@ -492,7 +497,7 @@ int write_branch(byte* prog){
 	Operation branch_op = encode_operation(I_BRANCH, SO_NONE);
 	Operation cons_str_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_CONSTANT, SO_STRING));
 	Operation incr_op = encode_operation(I_INCR, SO_NONE);
-	Operation jump_op = encode_operation(I_JUMP, SO_ABSOLUTE);
+	Operation jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE));
 	Operation num_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
 	Operation halt_op = encode_operation(I_HALT, SO_NONE);
 	
@@ -592,8 +597,7 @@ int write_threading(byte* prog){
 	Operation incr_op = encode_operation(I_INCR, SO_NONE);
 	Operation halt_op = encode_operation(I_HALT, SO_NONE);
 	Operation fork_op = encode_operation(I_TH_NEW, SO_CONSTANT);
-	Operation jump_op = encode_operation(I_JUMP, SO_ABSOLUTE);
-	Operation str_input_op = encode_operation(I_INPUT, SO_STRING);
+	Operation jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE));
 	Operation kill_op = encode_operation(I_TH_KILL, SO_NONE);
 	
 	Data thread1;
@@ -648,13 +652,6 @@ int write_threading(byte* prog){
 	pc = write_register(prog, pc, 2, REG_SPEC);
 	pc = write_constant(prog, pc, forked);
 	
-	/*
-	// INPUT $!3 > $2
-	pc = write_opcode(prog, pc, str_input_op);
-	pc = write_register(prog, pc, 3, REG_SPEC);
-	pc = write_register(prog, pc, 2, REG_VAR);
-	*/
-	
 	// TH_KILL $1
 	pc = write_opcode(prog, pc, kill_op);
 	pc = write_register(prog, pc, 1, REG_VAR);
@@ -685,6 +682,111 @@ int write_threading(byte* prog){
 	
 	record_pc(prog, label_loc, label_ref, 2);
 	
+	
+	return pc;
+}
+
+int write_functions(byte* prog){
+	int pc = 0;
+	
+	Operation incr_op = encode_operation(I_INCR, SO_NONE);
+	Operation halt_op = encode_operation(I_HALT, SO_NONE);
+	Operation reg_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE));
+	Operation rel_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE));
+	Operation load_op = encode_operation(I_MOVE, SO_CONSTANT);
+	Operation push_op = encode_operation(I_PUSHFRAME, SO_NONE);
+	Operation pop_op = encode_operation(I_POPFRAME, SO_NONE);
+	Operation num_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
+	Operation mul_op = encode_operation(I_MUL, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation func_create_op = encode_operation(I_F_CREATE, FORMAT3_SUBOP(SO_CLOSURE, SO_RELATIVE));
+	Operation func_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION));
+	Operation func_call_op = encode_operation(I_F_CALL, SO_NONE);
+	Operation copy_op = encode_operation(I_MOVE, SO_REGISTER);
+	
+	int ret_label_ref;
+	int ret_label_loc;
+	
+	// INCR $!1 > $1
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 1, REG_SPEC);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// F_CREATE +23 1 $1 > $0
+	pc = write_opcode(prog, pc, func_create_op);	// 2
+	pc = write_constant_inline(prog, pc, 23);		// 8
+	pc = write_byte(prog, pc, 1);					// 1
+	pc = write_register(prog, pc, 1, REG_VAR);		// 1
+	pc = write_register(prog, pc, 0, REG_VAR);		// 1
+	
+	// JUMP +18
+	pc = write_opcode(prog, pc, rel_jump_op);	// 2
+	pc = write_constant_inline(prog, pc, 18);	// 8
+	
+	// MUL $a(1) $1 > $r(0)
+	pc = write_opcode(prog, pc, mul_op);		// 2
+	pc = write_register(prog, pc, 1, REG_RARG);	// 1
+	pc = write_register(prog, pc, 1, REG_VAR);	// 1
+	pc = write_register(prog, pc, 0, REG_WRET);	// 1
+	
+	// Every function ever should end with this
+	// JUMP $a(0)
+	pc = write_opcode(prog, pc, reg_jump_op);	// 2
+	pc = write_register(prog, pc, 0, REG_RARG);	// 1
+	
+	// OUTPUT $!2 $0
+	pc = write_opcode(prog, pc, func_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// INCR $!1 > $a(1)
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 1, REG_SPEC);
+	pc = write_register(prog, pc, 1, REG_WARG);
+	
+	// MOVE :RET_LABEL: > $a(0)
+	pc = write_opcode(prog, pc, load_op);
+	ret_label_ref = pc; pc += sizeof(Data);
+	pc = write_register(prog, pc, 0, REG_WARG);
+	
+	// Note: this is only done because I_CALL requires
+	// that I_PUSHFRAME already happened, but that pushes
+	// the register holding the function out of scope.
+	// For now I'm just passing the function register down
+	// while I test closures
+	// MOVE $0 > $a(31)
+	pc = write_opcode(prog, pc, copy_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 31, REG_WARG);
+	
+	// PUSHFRAME
+	pc = write_opcode(prog, pc, push_op);
+	
+	// OUTPUT $!2 $1
+	pc = write_opcode(prog, pc, num_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// F_CALL $a(31)
+	pc = write_opcode(prog, pc, func_call_op);
+	pc = write_register(prog, pc, 31, REG_RARG);
+	
+	// :RET_LABEL:
+	ret_label_loc = pc;
+	
+	// POPFRAME
+	pc = write_opcode(prog, pc, pop_op);
+	
+	// OUTPUT $!2 $r(0)
+	pc = write_opcode(prog, pc, num_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_RRET);
+	
+	// HALT
+	pc = write_opcode(prog, pc, halt_op);
+	
+	
+	
+	record_pc(prog, ret_label_loc, &ret_label_ref, 1);
 	
 	return pc;
 }
@@ -746,6 +848,21 @@ int write_constant(byte* prog, int pc, Data data){
 	}
 	
 	return pc + sizeof(Data);
+}
+
+int write_constant_inline(byte* prog, int pc, long int n){
+	Data data;
+	data.n = n;
+	
+	return write_constant(prog, pc, data);
+}
+
+int write_byte(byte* prog, int pc, byte b){
+	if (!prog) return pc + 1;
+	
+	prog[pc] = b;
+	
+	return pc + 1;
 }
 
 void record_pc(byte* prog, int pc, int* refs, int nrefs){

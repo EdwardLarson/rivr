@@ -628,18 +628,16 @@ void* run_thread(void* th_in){
 			pc_next += 1;
 			
 			pc_next = load_Function(args[0].f, th);
-		
-			switch(subop){
-				
-				default:
-					break;
-			}
+			
 			break;
 			
 		case I_F_CREATE:
 			switch(subop){
-				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_INPLACE):
-					result.f = create_Function(pc_next + 1, 0);
+				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_RELATIVE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					
+					result.f = create_Function(th->pc + args[0].addr, 0);
 					
 					break;
 					
@@ -650,13 +648,15 @@ void* run_thread(void* th_in){
 					
 					break;
 					
-				case FORMAT4_SUBOP(SO_CLOSURE, SO_INPLACE):
-					args[0].b = read_byte(pc_next, th);
+				case FORMAT4_SUBOP(SO_CLOSURE, SO_RELATIVE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					args[1].b = read_byte(pc_next, th);
 					pc_next += 1;
 					
-					result.f = create_Function(pc_next + 1 + args[0].b, (int) args[0].b);
+					result.f = create_Function(th->pc + args[0].addr, (int) args[1].b);
 					
-					for(int i = 0; i < args[0].b; i++){
+					for(int i = 0; i < args[1].b; i++){
 						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
 						pc_next += 1;
 					}
@@ -664,32 +664,32 @@ void* run_thread(void* th_in){
 					break;
 					
 				case FORMAT4_SUBOP(SO_CLOSURE, SO_ABSOLUTE):
-					args[1] = access_constant(pc_next, th);
+					args[0] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
 					
-					args[0].b = read_byte(pc_next, th);
+					args[1].b = read_byte(pc_next, th);
 					pc_next += 1;
 					
-					result.f = create_Function(args[1].addr, (int) args[0].b);
+					result.f = create_Function(args[0].addr, (int) args[1].b);
 					
 					
-					for (int i = 0; i < args[0].b; i++){
+					for (int i = 0; i < args[1].b; i++){
 						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
 						pc_next += 1;
 					}
 					
 					break;
 					
-				case SO_FROMFUNC:
-					args[1] = *access_register(pc_next, th);
+				case SO_CLONE_F:
+					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
 					
-					args[0].b = read_byte(pc_next, th);
+					args[1].b = read_byte(pc_next, th);
 					pc_next += 1;
 					
-					result.f = copy_Function(args[1].f);
+					result.f = copy_Function(args[0].f);
 					
-					for (int i = 0; i < args[0].b; i++){
+					for (int i = 0; i < args[1].b; i++){
 						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
 						pc_next += 1;
 					}
@@ -804,16 +804,39 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_JUMP:
-			args[0] = access_constant(pc_next, th);
-			pc_next += sizeof(Data);
 		
 			switch(subop){
-				case SO_ABSOLUTE:
+				case FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE):
+					#ifdef DEBUG
+					printf("Constant jump subop\n");
+					#endif
+					
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
 					pc_next = args[0].addr;
 					break;
 					
-				case SO_RELATIVE:
-					pc_next = th->pc + args[0].addr; // TO-DO: Verify that if .f is written as a signed number that sign will be used here
+				case FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE):
+					args[0] = access_constant(pc_next, th);
+					pc_next += sizeof(Data);
+					pc_next = th->pc + args[0].addr;
+					break;
+					
+				case FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE):
+					#ifdef DEBUG
+					printf("Register jump subop\n");
+					#endif
+				
+				
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					pc_next = args[0].addr;
+					break;
+					
+				case FORMAT3_SUBOP(SO_REGISTER, SO_RELATIVE):
+					args[0] = *access_register(pc_next, th);
+					pc_next += 1;
+					pc_next = th->pc + args[0].addr;
 					break;
 				
 				default:
@@ -1234,7 +1257,7 @@ void* run_thread(void* th_in){
 				case FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
-					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].addr);
+					fprintf((FILE*) args[0].n, "fun<%p>{%d enclosed}", args[1].f, args[1].f->n_enclosed);
 					break;
 				case FORMAT2_SUBOP(SO_REGISTER, SO_BOOLEAN):
 					args[1] = *access_register(pc_next, th);
@@ -1581,6 +1604,12 @@ void* run_thread(void* th_in){
 		
 		th->pc = pc_next;
 	}
+	
+	#ifdef DEBUG
+	if (th->pc >= th->prog_len){
+		printf("PC(%lu) outside of program bounds\n", th->pc);
+	}
+	#endif
 	
 	if (th->status < 0){
 		teardown_Thread(th);

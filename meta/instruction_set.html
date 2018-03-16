@@ -626,15 +626,16 @@
 		
 		<tr>
 		<td>
-			NO_CLOSURE_IN_PLACE
+			NO_CLOSURE_RELATIVE
 		</td>
 		<td>
-			Create a Function pointing to the instruction after this one. Store at $funct.
+			Create a Function pointing to an instruction #offset bytes after this one. Store at $funct.
 		</td>
 		<td><ul>
+			<li>#offset</li>
 			<li>$funct</li>
 		</ul></td>
-		<td>3</td>
+		<td>11</td>
 		</tr>
 		
 		<tr>
@@ -653,17 +654,18 @@
 		
 		<tr>
 		<td>
-			CLOSURE_IN_PLACE
+			CLOSURE_RELATIVE
 		</td>
 		<td>
-			Create a Function pointing to the instruction after this one, incorporating %ndata primitives into the closure. Store at $funct.
+			Create a Function pointing to an instruction #offset bytes after this one, incorporating %ndata primitives into the closure. Store at $funct.
 		</td>
 		<td><ul>
+			<li>#offset</li>
 			<li>%ndata</li>
 			<li>$reg0...</li>
 			<li>$funct</li>
 		</ul></td>
-		<td>5+</td>
+		<td>13+</td>
 		</tr>
 		
 		<tr>
@@ -684,7 +686,7 @@
 		
 		<tr>
 		<td>
-			FROM_FUNCTION
+			CLONE_FUNCTION
 		</td>
 		<td>
 			Clone an existing Function, incorporating %ndata primitives into the closure. Store at $funct.

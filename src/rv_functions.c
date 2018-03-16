@@ -36,8 +36,9 @@ Function* copy_Function(const Function* f){
 	f_cpy->addr = f->addr;
 	
 	// Most of the time a function is being copied, it is to add data to enclosure
+	// Anticipating this, the copy allocates slightly more space than the original
 	// Risk of repetitive copies requesting larger and larger mallocs
-	// However repetitive copying is liable to rip through memory anyway
+	// However, repetitive copying is liable to rip through memory anyway
 	f_cpy->enclosure_size = f->enclosure_size + CPY_NDATA_GUESS;  
 	
 	if (f_cpy->enclosure_size > 0){
@@ -75,7 +76,22 @@ void enclose_data_Function(Function* f, Data* data, byte reg){
 	}
 	
 	f->local_data[f->n_enclosed] = *data;
-	f->registers[f->n_enclosed] = reg;
+	
+	if (((reg & 0xE0) >> 5) == 0x04){
+		// reg is a virtual argument write register
+		// the only time a register of this type should be enclosed 
+		// is during a partial function call: an enclosure is being
+		// created in which one or more arguments are 'pre-passed'
+		// in. Notice the distinction between this and an in-scope
+		// variable being captured.
+		
+		// convert argument write register to argument read register
+		f->registers[f->n_enclosed] = (reg & 0x1F) | 0x40;
+		
+	}else{
+		f->registers[f->n_enclosed] = reg;
+	}
+	
 	
 	f->n_enclosed++;
 }
@@ -88,16 +104,31 @@ PCType load_Function(const Function* f, Thread* th){
 	
 	for (int i = 0; i < f->n_enclosed; i++){
 		r_type = (f->registers[i] & 0xE0) >> 5;
-		n = f->registers[i] & 0x1F
-;		
+		n = f->registers[i] & 0x1F;
+		
 		switch(r_type){
 			case 0x00:
 			case 0x01:
+				
 				n = f->registers[i] & 0x3F;
 				frame->v_registers[n] = f->local_data[i];
 				break;
 			case 0x02:
 				n = f->registers[i] & 0x1F;
+				
+				// shift argument registers outward to make room for arg in closure
+				for (int j = 31; j > n; j--){
+					// WARNING 1: this could break closure layout if 
+					// a_registers in f are not ordered (l to g)
+					// so make sure that always happens
+					// WARNING 2: Will overwrite the last _x_ argument
+					// registers, where _x_ is the number of argument
+					// registers in the closure
+					// This process is expensive so it may become optional in the future
+					
+					frame->a_registers[j] = frame->a_registers[j-1];
+				}
+				
 				frame->a_registers[n] = f->local_data[i];
 				break;
 			case 0x03:

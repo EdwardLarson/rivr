@@ -111,10 +111,9 @@
 #define SO_OR			2
 #define SO_XOR			3
 
-#define SO_INPLACE		1 // paired with SO_ABSOLUTE
 #define SO_NOCLOSURE	0
 #define SO_CLOSURE		1
-#define SO_FROMFUNC		4
+#define SO_CLONE_F		4
 
 // vm operations have a signature of:
 // operation_OPCODE(byte subop, byte* argstart, Thread* th, PCType* pc, PCType prog_len)
