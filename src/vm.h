@@ -16,6 +16,14 @@
 
 #define CLEAR_DATA(data) data.n = 0;
 
+#define SREG_ZERO_N		0
+#define SREG_ONE_N		1
+#define SREG_STDOUT		2
+#define SREG_STDIN		3
+#define SREG_STDERR		4
+#define SREG_ZERO_R		5
+#define SREG_ONE_R		6
+#define SREG_HALF_R		7
 
 
 

@@ -141,27 +141,23 @@ void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_le
 }
 
 void init_spec_registers(Data* registers){
-	Data data;
 	
-	// $!0 = 0
-	data.n = 0;
-	registers[0] = data;
+	registers[SREG_ZERO_N].n = 0;
 	
-	// $!1 = 1
-	data.n = 1;
-	registers[1] = data;
+	registers[SREG_ONE_N].n = 1;
 	
-	// $!2 = stdout
-	data.n = (long int) stdout;
-	registers[2] = data;
+	registers[SREG_STDOUT].n = (long int) stdout;
 	
-	// $!3 = stdin
-	data.n = (long int) stdin;
-	registers[3] = data;
+	registers[SREG_STDIN].n = (long int) stdin;
 	
-	// $!3 = stderr
-	data.n = (long int) stderr;
-	registers[3] = data;
+	registers[SREG_STDERR].n = (long int) stderr;
+	
+	registers[SREG_ZERO_R].d = 0.0D;
+	
+	registers[SREG_ONE_R].d = 1.0D;
+	
+	registers[SREG_HALF_R].d = 0.5D;
+	
 }
 
 Thread* fork_Thread(const Thread* parent, PCType pc_start){

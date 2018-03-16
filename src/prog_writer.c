@@ -95,11 +95,11 @@ int write_addition(byte* prog){
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// PRINT $0
 	pc = write_opcode(prog, pc, print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// PRINT newline
 	pc = write_opcode(prog, pc, newline_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	// INCR $0 > $0
 	pc = write_opcode(prog, pc, increment_op);
@@ -107,11 +107,11 @@ int write_addition(byte* prog){
 	pc = write_register(prog, pc, 0, REG_VAR);
 	// PRINT $0
 	pc = write_opcode(prog, pc, print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// PRINT newline
 	pc = write_opcode(prog, pc, newline_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	// HALT
 	pc = write_opcode(prog, pc, halt_op); // 2
@@ -145,53 +145,53 @@ int write_input(byte* prog){
 	pc = write_register(prog, pc, 1, REG_VAR); // 1
 	// INPUT $!3 > $0
 	pc = write_opcode(prog, pc, num_input_op); // 2
-	pc = write_register(prog, pc, 3, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDIN, REG_SPEC); // 1
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// OUTPUT '/n'
 	pc = write_opcode(prog, pc, nwl_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	// OUTPUT $!2 $0
 	pc = write_opcode(prog, pc, num_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_register(prog, pc, 0, REG_VAR); // 1
 	// OUTPUT '/n'
 	pc = write_opcode(prog, pc, nwl_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	
 	// INPUT $!3 > $1
 	pc = write_opcode(prog, pc, str_input_op); // 2
-	pc = write_register(prog, pc, 3, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDIN, REG_SPEC); // 1
 	pc = write_register(prog, pc, 1, REG_VAR); // 1
 	// OUTPUT '/n'
 	pc = write_opcode(prog, pc, nwl_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	// OUTPUT $!2 $1
 	pc = write_opcode(prog, pc, str_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_register(prog, pc, 1, REG_VAR); // 1
 	// OUTPUT '/n'
 	pc = write_opcode(prog, pc, nwl_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	
 	// INPUT $!3 > $1
 	pc = write_opcode(prog, pc, str_input_op); // 2
-	pc = write_register(prog, pc, 3, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDIN, REG_SPEC); // 1
 	pc = write_register(prog, pc, 1, REG_VAR); // 1
 	// OUTPUT '/n'
 	pc = write_opcode(prog, pc, nwl_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	// OUTPUT $!2 $1
 	pc = write_opcode(prog, pc, str_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_register(prog, pc, 1, REG_VAR); // 1
 	// OUTPUT '/n'
 	pc = write_opcode(prog, pc, nwl_print_op); // 2
-	pc = write_register(prog, pc, 2, REG_SPEC); // 1
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC); // 1
 	pc = write_constant(prog, pc, newline); // _data
 	
 	// HALT
@@ -271,12 +271,12 @@ int write_memory(byte* prog){
 	
 	// OUTPUT $!2 $6
 	pc = write_opcode(prog, pc, obj_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 6, REG_VAR);
 	
 	// OUTPUT $!2 '\n'
 	pc = write_opcode(prog, pc, nwl_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, newline);
 	
 	// M_STORE $6 0 $3
@@ -357,12 +357,12 @@ int write_memory(byte* prog){
 	
 	// OUTPUT $!2 $5
 	pc = write_opcode(prog, pc, num_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 5, REG_VAR);
 	
 	// OUTPUT $!2 '\n'
 	pc = write_opcode(prog, pc, nwl_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, newline);
 	
 	// HALT
@@ -423,12 +423,12 @@ int write_pow(byte* prog){
 	
 	// OUTPUT $!2 $2
 	pc = write_opcode(prog, pc, num_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 2, REG_VAR);
 	
 	// OUTPUT $!2 '\n'
 	pc = write_opcode(prog, pc, nwl_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, newline);
 	
 	// MOVE twof > $0
@@ -449,12 +449,12 @@ int write_pow(byte* prog){
 	
 	// OUTPUT $!2 $2
 	pc = write_opcode(prog, pc, rat_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 2, REG_VAR);
 	
 	// OUTPUT $!2 '\n'
 	pc = write_opcode(prog, pc, nwl_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, newline);
 	
 	// MOVE threef > $1
@@ -470,17 +470,17 @@ int write_pow(byte* prog){
 	
 	// OUTPUT $!2 $2
 	pc = write_opcode(prog, pc, rat_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 2, REG_VAR);
 	
 	// OUTPUT $!2 '\n'
 	pc = write_opcode(prog, pc, nwl_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, newline);
 	
 	// OUTPUT $!2 "Done"
 	pc = write_opcode(prog, pc, nwl_print_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, done);
 	
 	// HALT 
@@ -533,7 +533,7 @@ int write_branch(byte* prog){
 	
 	// INPUT $!3 > $1
 	pc = write_opcode(prog, pc, num_input_op);
-	pc = write_register(prog, pc, 3, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDIN, REG_SPEC);
 	pc = write_register(prog, pc, 1, REG_VAR);
 	
 	// GT $1 $!1 > $2
@@ -550,7 +550,7 @@ int write_branch(byte* prog){
 	
 	// OUTPUT $!2 ">1\n"
 	pc = write_opcode(prog, pc, cons_str_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, str_greater_than_one);
 	
 	// INCR $0 > $0
@@ -568,17 +568,17 @@ int write_branch(byte* prog){
 	
 	// OUTPUT $!2 "fin\n"
 	pc = write_opcode(prog, pc, cons_str_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, str_finished);
 	
 	// OUTPUT $!2 $0
 	pc = write_opcode(prog, pc, num_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 0, REG_VAR);
 	
 	// OUTPUT $!2 "\n"
 	pc = write_opcode(prog, pc, cons_str_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, str_newline);
 	
 	// HALT
@@ -633,7 +633,7 @@ int write_threading(byte* prog){
 	
 	// OUTPUT $!2 'thr1\n'
 	pc = write_opcode(prog, pc, cons_str_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, thread1);
 	
 	// INCR $!0 > $0
@@ -649,7 +649,7 @@ int write_threading(byte* prog){
 	
 	// OUTPUT $!2 'forked\n'
 	pc = write_opcode(prog, pc, cons_str_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, forked);
 	
 	// TH_KILL $1
@@ -658,7 +658,7 @@ int write_threading(byte* prog){
 	
 	// OUTPUT $!2 'killed\n'
 	pc = write_opcode(prog, pc, cons_str_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_constant(prog, pc, killed); 
 	
 	// HALT
@@ -694,14 +694,12 @@ int write_functions(byte* prog){
 	Operation reg_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE));
 	Operation rel_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE));
 	Operation load_op = encode_operation(I_MOVE, SO_CONSTANT);
-	Operation push_op = encode_operation(I_PUSHFRAME, SO_NONE);
 	Operation pop_op = encode_operation(I_POPFRAME, SO_NONE);
 	Operation num_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
 	Operation mul_op = encode_operation(I_MUL, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
 	Operation func_create_op = encode_operation(I_F_CREATE, FORMAT3_SUBOP(SO_CLOSURE, SO_RELATIVE));
 	Operation func_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION));
 	Operation func_call_op = encode_operation(I_F_CALL, SO_PUSHFIRST);
-	Operation copy_op = encode_operation(I_MOVE, SO_REGISTER);
 	
 	int ret_label_ref;
 	int ret_label_loc;
@@ -735,7 +733,7 @@ int write_functions(byte* prog){
 	
 	// OUTPUT $!2 $0
 	pc = write_opcode(prog, pc, func_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 0, REG_VAR);
 	
 	// INCR $!1 > $a(1)
@@ -760,7 +758,7 @@ int write_functions(byte* prog){
 	
 	// OUTPUT $!2 $r(0)
 	pc = write_opcode(prog, pc, num_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc,  SREG_STDOUT, REG_SPEC);
 	pc = write_register(prog, pc, 0, REG_RRET);
 	
 	// HALT
