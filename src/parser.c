@@ -15,11 +15,11 @@ void print_typed_token(const Typed_Token* tt){
 		case T_FLAG:
 			printf("FLAG: %d @ %d\n", tt->data.flag, tt->pos);
 			break;
-		case T_ATOM_DECLARE:
-			printf("ATOM_DECLARE @ %d\n", tt->pos);
-			break;
-		case T_VAR_DECLAR:
+		case T_VAR_DECLARE:
 			printf("VAR_DECLARE @ %d\n", tt->pos);
+			break;
+		case T_VAR_DEFINE:
+			printf("VAR_DEFINE @ %d\n", tt->pos);
 			break;
 		case T_INTEGER:
 			printf("INTEGER: %ld @ %d\n", tt->data.integer, tt->pos);
@@ -199,7 +199,7 @@ Token* next_token(FILE* fp){
 	| digit				| anything but a digit or '.'						| number
 	| /					| anything but '/', '*', '='						| operator
 	| +					| anything but '=' or '+'							| operator
-	| -					| anything but '=','-','>'							| operator, function_return
+	| -					| anything but '=','-','>','.', or digit			| operator, function_return
 	| *					| anything but '=', '*', '/'						| operator
 	| %					| anything but '='									| operator
 	| "					| '"' (skipping any character preceded by '\')		| string
@@ -324,7 +324,7 @@ Token* next_token(FILE* fp){
 				}
 				break;
 			case '-':
-				if (c == '=' || c == '-' || c == '>'){
+				if (c == '=' || c == '-' || c == '>' || c == '.' || isdigit(c)){
 					buffer[i] = c;
 					i++;
 				}else{
@@ -654,10 +654,10 @@ int is_assignment(const char* token, Token_Type* type, Typed_Token_Data* data){
 int is_declarator(const char* token, Token_Type* type, Typed_Token_Data* data){
 	if (strlen(token) == 2 && token[0] == ':'){
 		if (token[1] == ':'){
-			*type = T_ATOM_DECLARE;
+			*type = T_VAR_DECLARE;
 			return 1;
 		}else if (token[1] == '='){
-			*type = T_VAR_DECLAR;
+			*type = T_VAR_DEFINE;
 			return 1;
 		}else{
 			return 0;
@@ -672,6 +672,8 @@ int is_number(const char* token, Token_Type* type, Typed_Token_Data* data){
 	int len = strlen(token);
 	int i;
 	for (i = 0; i < len; i++){
+		if (i == 0 && token[i] == '-') continue;
+		
 		if (token[i] == '.'){
 			if (is_rat) return 0;
 			

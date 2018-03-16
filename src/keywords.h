@@ -64,9 +64,10 @@ const char* const operators[N_OPERATORS];
 typedef enum {
 	F_PUBLIC,
 	F_PRIVATE,
-	F_OVERRIDE
+	F_OVERRIDE,
+	F_PURE
 } FLAG;
 
-#define N_FLAGS 3
+#define N_FLAGS 4
 
 const char* const flags[N_FLAGS];

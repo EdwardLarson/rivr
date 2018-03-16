@@ -36,8 +36,8 @@ typedef enum {
 	T_KEYWORD, // string data
 	T_FLAG, // string data
 	
-	T_ATOM_DECLARE, // no data
-	T_VAR_DECLAR, // no data
+	T_VAR_DECLARE, // no data
+	T_VAR_DEFINE, // no data
 	
 	T_INTEGER, // long int
 	T_RATIONAL, // double

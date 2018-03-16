@@ -1,9 +1,9 @@
-x :: 5
-string1 :: "heyo"
-string2 :: "whoah man i got a \" and a newline!
+x := 5
+string1 := "heyo"
+string2 := "whoah man i got a \" and a newline!
 spooky"
 // blah blah blah, i am a long ass comment line
-foo :: f(int a)->int:
+foo := f(int a)->int:
     return a + 1
 /*and now for 
 
@@ -15,12 +15,14 @@ comment
 
 */
 
-y :: 6
+y := 6
 
-bar :: f()->int:
+z :: -10
+
+bar := f()->int:
     func1 := f():
         func2 := f():
             func2 := f():
                 func3 := f():
-                           print("Hi!")
+                    print("Hi!")
     return 1

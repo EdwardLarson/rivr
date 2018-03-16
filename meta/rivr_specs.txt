@@ -10,10 +10,10 @@
 myvar :: int
 
 // Declaration of a function variable
-foo :: f( z :: int, word :: str)->(int)
+foo :: f(int z, str word)->(int)
 
 // Definition of a function
-foo = f(z :: int word :: str) -> (int):
+foo = f(int z, str word) -> (int):
     // size returns the number of bytes a primitive takes up
 	// for a string, this is its length
     return z * size(word)
@@ -22,10 +22,10 @@ foo = f(z :: int word :: str) -> (int):
 globalVar := "I am a string!"
 
 // Declaration of a variable, implicitly typed as a function
-globalFunc := f(x :: int, y :: int)->(int, int): return (x*y), (x+y)
+globalFunc := f(int x, int y)->(int, int): return (x*y), (x+y)
 
 // Reassignment of a variable
-globalFunc = f(x :: int, y :: int)->(int, int): return (x/y), (x-y)
+globalFunc = f(int x, int x)->(int, int): return (x/y), (x-y)
 
 // Definition of a class
 {MyClass}:
@@ -48,16 +48,16 @@ globalFunc = f(x :: int, y :: int)->(int, int): return (x/y), (x-y)
     get_y :: 
         f()->(int): return .y
 	set_x ::
-		f(x :: int): .x = x
+		f(int x): .x = x
 	set_y ::
-		f(y :: int): .y = y
+		f(int y): .y = y
 	
 	@\... // Ending a continued flag
         
 	// Definition of the class constructor
     @public
     init ::
-        f(x :: int, y :: int):
+        f(int x, int y):
             .x = x
             .y = y
     
@@ -68,7 +68,7 @@ class {MyCompositeClass} is {MyClass, PrettyPrintable, SomeComponent}:
 	// Class constructor which calls component's constructors
     @public
     init ::
-		f(z :: int):
+		f(int z):
 			.MyClass(z * 2, z / 2)
 			.PrettyPrintable("My values are: ", ", ")
 			.SomeComponent(z, true, true)
@@ -86,7 +86,7 @@ print(myObject.n) // again, n is part of the MyClass component
 myObject.pprint() // .pprint is part of the PrettyPrintable component
 print(myObject.arbitraryVar) // assuming arbitraryVar is a public attribute of SomeComponent
     
-bar :: f(mc :: {MyClass}, a :: int):
+bar :: f({MyClass} mc, int a):
 	mc.set_x(a)
 	mc.set_y(a)
 	
