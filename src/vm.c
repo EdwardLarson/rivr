@@ -213,7 +213,9 @@ void teardown_Thread(Thread* th){
 	#ifdef DEBUG
 	printf("\tAbout to free th\n");
 	#endif
+	
 	free(th);
+	
 	#ifdef DEBUG
 	printf("\tfreed th\n");
 	#endif
@@ -627,7 +629,18 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			pc_next = load_Function(args[0].f, th);
+			switch(subop){
+					
+				case SO_PUSHFIRST:
+					push_frame(th);
+					// fall into next case
+				case SO_DIRECT:
+					pc_next = load_Function(args[0].f, th);
+					break;
+					
+				default:
+					break;
+			}
 			
 			break;
 			
@@ -982,6 +995,14 @@ void* run_thread(void* th_in){
 					
 				case SO_STRING:
 					string_destroy(args[0].s);
+					break;
+					
+				case SO_THREAD:
+					teardown_Thread(args[0].t);
+					break;
+					
+				case SO_FUNCTION:
+					teardown_Function(args[0].f);
 					break;
 					
 				default:
@@ -1610,13 +1631,6 @@ void* run_thread(void* th_in){
 		printf("PC(%lu) outside of program bounds\n", th->pc);
 	}
 	#endif
-	
-	if (th->status < 0){
-		teardown_Thread(th);
-	}else{
-		// status == 0 == TH_STAT_WAIT
-		
-	}
 	
 	return NULL;
 }

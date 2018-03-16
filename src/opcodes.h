@@ -115,5 +115,8 @@
 #define SO_CLOSURE		1
 #define SO_CLONE_F		4
 
+#define SO_DIRECT		0
+#define SO_PUSHFIRST	1
+
 // vm operations have a signature of:
 // operation_OPCODE(byte subop, byte* argstart, Thread* th, PCType* pc, PCType prog_len)

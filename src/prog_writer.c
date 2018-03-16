@@ -700,7 +700,7 @@ int write_functions(byte* prog){
 	Operation mul_op = encode_operation(I_MUL, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
 	Operation func_create_op = encode_operation(I_F_CREATE, FORMAT3_SUBOP(SO_CLOSURE, SO_RELATIVE));
 	Operation func_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION));
-	Operation func_call_op = encode_operation(I_F_CALL, SO_NONE);
+	Operation func_call_op = encode_operation(I_F_CALL, SO_PUSHFIRST);
 	Operation copy_op = encode_operation(I_MOVE, SO_REGISTER);
 	
 	int ret_label_ref;
@@ -748,27 +748,9 @@ int write_functions(byte* prog){
 	ret_label_ref = pc; pc += sizeof(Data);
 	pc = write_register(prog, pc, 0, REG_WARG);
 	
-	// Note: this is only done because I_CALL requires
-	// that I_PUSHFRAME already happened, but that pushes
-	// the register holding the function out of scope.
-	// For now I'm just passing the function register down
-	// while I test closures
-	// MOVE $0 > $a(31)
-	pc = write_opcode(prog, pc, copy_op);
-	pc = write_register(prog, pc, 0, REG_VAR);
-	pc = write_register(prog, pc, 31, REG_WARG);
-	
-	// PUSHFRAME
-	pc = write_opcode(prog, pc, push_op);
-	
-	// OUTPUT $!2 $1
-	pc = write_opcode(prog, pc, num_output_op);
-	pc = write_register(prog, pc, 2, REG_SPEC);
-	pc = write_register(prog, pc, 1, REG_VAR);
-	
-	// F_CALL $a(31)
+	// F_CALL $0
 	pc = write_opcode(prog, pc, func_call_op);
-	pc = write_register(prog, pc, 31, REG_RARG);
+	pc = write_register(prog, pc, 0, REG_VAR);
 	
 	// :RET_LABEL:
 	ret_label_loc = pc;

@@ -597,13 +597,26 @@
 		
 		<tr>
 		<td>
-			NONE
+			DIRECT
 		</td>
 		<td>
-			Jump to $address
+			Load and execute $func
 		</td>
 		<td><ul>
-			<li>$address</li>
+			<li>$func</li>
+		</ul></td>
+		<td>3</td>
+		</tr>
+		
+		<tr>
+		<td>
+			PUSH
+		</td>
+		<td>
+			Push frame, then load and execute $func
+		</td>
+		<td><ul>
+			<li>$func</li>
 		</ul></td>
 		<td>3</td>
 		</tr>
