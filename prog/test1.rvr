@@ -15,9 +15,10 @@ comment
 
 */
 
+# a flag
 y := 6
 
-z :: -10
+# an inline flag # z :: -10
 
 bar := f()->int:
     func1 := f():

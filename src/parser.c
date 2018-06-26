@@ -13,7 +13,7 @@ void print_typed_token(const Typed_Token* tt){
 			printf("KEYWORD: %d @ %d\n", tt->data.keyword, tt->pos);
 			break;
 		case T_FLAG:
-			printf("FLAG: %d @ %d\n", tt->data.flag, tt->pos);
+			printf("FLAG: %s @ %d\n", tt->data.string, tt->pos);
 			break;
 		case T_VAR_DECLARE:
 			printf("VAR_DECLARE @ %d\n", tt->pos);
@@ -212,7 +212,7 @@ Token* next_token(FILE* fp){
 	| =					| anything but '='									| assignment, operator
 	| .					| immediately return								| period
 	| ,					| immediately return								| comma
-	| @					| non-alphanumeric									| flag
+	| #					| newline, '#'										| flag
 	| (					| immediately return								| open_expr
 	| )					| immediately return								| close_expr
 	| [					| immediately return								| open_arr
@@ -382,12 +382,13 @@ Token* next_token(FILE* fp){
 					i++;
 				}
 				break;
-			case '@':
-				if (isalnum(c) || c == '.'){
+			case '#':
+				if (c == '#' || c == '\n'){
+					buffer[i] = '\0';
+					return create_token(buffer, ftell(fp));
+				}else{
 					buffer[i] = c;
 					i++;
-				}else{
-					return finish_token(buffer, i, c, fp);
 				}
 				break;
 			case '\n':
@@ -722,13 +723,16 @@ int is_func_return(const char* token, Token_Type* type, Typed_Token_Data* data){
 }
 
 int is_flag(const char* token, Token_Type* type, Typed_Token_Data* data){
-	int i;
-	for (i = 0; i < N_FLAGS; i++){
-		if (!strcmp(token, flags[i])){
-			*type = T_FLAG;
-			data->flag = (FLAG) i;
-			return 1;
-		}
+	
+	if (token[0] == '#'){
+		*type = T_FLAG;
+		int n_chars = strlen(token);
+		data->string = malloc(n_chars * sizeof(char));
+		
+		strncpy(data->string, &token[1], n_chars);
+		data->string[n_chars - 1] = '\0';
+		
+		return 1;
 	}
 	
 	return 0;

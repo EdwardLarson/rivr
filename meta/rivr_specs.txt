@@ -36,13 +36,13 @@ globalFunc = f(int x, int x)->(int, int): return (x/y), (x-y)
 	
 	// Use of a compiler flag (using '@') to define a public atom
 	// Compiler flags are stacked up and applied to the next expression, declaration, etc.
-    @public
+    #public
     n :: 10
     
 	// Definition of getter and setter methods
 	// The '...' in the compiler flag means that the stack of compiler flags are not cleared after being applied
 	// Allows one flag to apply to multiple expressions
-    @public...
+    #public...
     get_x :: 
         f()->(int): return .x // .name is how attributes of the current object are accessed
     get_y :: 
@@ -52,10 +52,10 @@ globalFunc = f(int x, int x)->(int, int): return (x/y), (x-y)
 	set_y ::
 		f(int y): .y = y
 	
-	@\... // Ending a continued flag
+	#\... // Ending a continued flag
         
 	// Definition of the class constructor
-    @public
+    #public
     init ::
         f(int x, int y):
             .x = x
@@ -63,10 +63,11 @@ globalFunc = f(int x, int x)->(int, int): return (x/y), (x-y)
     
 // Definition of a composite class
 class {MyCompositeClass} is {MyClass, PrettyPrintable, SomeComponent}:
-    z :: int
+	// example of inline flag
+    #private# z :: int
     
 	// Class constructor which calls component's constructors
-    @public
+    #public
     init ::
 		f(int z):
 			.MyClass(z * 2, z / 2)
@@ -105,7 +106,7 @@ class {MyCompositeClassButDifferent} is {MyClass, PrettyPrintable, SomeComponent
     z := int
     
 	// Class constructor which calls component's constructors
-    @public
+    #public
     init ::
 		f(int z):
 			.MyClass(z * 2, z / 2)
@@ -113,7 +114,7 @@ class {MyCompositeClassButDifferent} is {MyClass, PrettyPrintable, SomeComponent
 			.SomeComponent(z, true, true)
 			
 	// Compiler flag needed to override a component's data
-	@public @override
+	#public override
 	n :: 15 // redefines the n variable; this data will be returned if n is requested from an instance of MyCompositeClass, even if in the current context it is being 'viewed' as MyClass
 
 // Declaration of an actor    
