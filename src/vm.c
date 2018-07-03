@@ -1652,9 +1652,11 @@ byte read_into_bool(FILE* fp){
 	fscanf(fp, "%ms%n", &c_str, &str_len);
 	while (getc(fp) != '\n'); // flush input buffer
 	
-	if (strcmp(c_str, "true") == 0){
+	if (strncmp(c_str, "true", 4) == 0){
+		free (c_str);
 		return 1;
 	}else{
+		free (c_str);
 		return 0;
 	}
 }
