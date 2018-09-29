@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
-#include "parser.h"
+#include "lexer.h"
 
 typedef enum Rivr_Command_{
 	R_NONE,

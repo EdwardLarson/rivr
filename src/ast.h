@@ -1,4 +1,4 @@
-#include "parser.h"
+#include "lexer.h"
 
 typedef enum {
 	N_STATEMENT_BLOCK, // multiple abstractions in a row, to be executed sequentially: has any number of children
