@@ -15,11 +15,14 @@ typedef enum {
 	K_IS,
 	K_CLASS,
 	K_ACTOR,
-	AND,
-	OR
+	K_AND,
+	K_OR,
+	K_XOR,
+	K_TRUE,
+	K_FALSE
 } KEYWORD;
 
-#define N_KEYWORDS 18
+#define N_KEYWORDS 21
 const char* const keywords[N_KEYWORDS];
 
 typedef enum {
@@ -54,10 +57,13 @@ typedef enum {
 	O_POW_ASSIGN,
 	O_RSH_ASSIGN,
 	O_LSH_ASSIGN,
+	O_LOG_AND,
+	O_LOG_OR,
+	O_LOG_XOR
 	
 } OPERATOR;
 
-#define N_OPERATORS 31
+#define N_OPERATORS 34
 
 const char* const operators[N_OPERATORS];
 

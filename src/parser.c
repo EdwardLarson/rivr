@@ -7,7 +7,7 @@
 void print_typed_token(const Typed_Token* tt){
 	switch (tt->type){
 		case T_IDENTIFIER:
-			printf("INDENTIFIER: %s @ %d\n", tt->data.string, tt->pos);
+			printf("IDENTIFIER: %s @ %d\n", tt->data.string, tt->pos);
 			break;
 		case T_KEYWORD:
 			printf("KEYWORD: %d @ %d\n", tt->data.keyword, tt->pos);
@@ -205,10 +205,10 @@ Token* next_token(FILE* fp){
 	| "					| '"' (skipping any character preceded by '\')		| string
 	| >					| anything but '>', '='								| operator
 	| <					| anything but '<', '='								| operator
-	| ^					| anything but '='									| operator
+	| ^					| anything but '=' or '^'							| operator
 	| !					| anything but '='									| operator
-	| &					| anything but '='									| operator
-	| |					| anything but '='									| operator
+	| &					| anything but '=' or '&'							| operator
+	| |					| anything but '=' or '|'							| operator
 	| =					| anything but '='									| assignment, operator
 	| .					| immediately return								| period
 	| ,					| immediately return								| comma
@@ -316,7 +316,10 @@ Token* next_token(FILE* fp){
 				}
 				break;
 			case '+':
-				if (c == '=' || c == '+'){
+			case '&':
+			case '|':
+			case '^':
+				if (c == '=' || c == initial_char){
 					buffer[i] = c;
 					i++;
 				}else{
@@ -349,10 +352,7 @@ Token* next_token(FILE* fp){
 					return finish_token(buffer, i, c, fp);
 				}
 				break;
-			case '^':
 			case '!':
-			case '&':
-			case '|':
 			case '%':
 				// c must be '='
 				if (c == '='){

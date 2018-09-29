@@ -18,7 +18,10 @@ const char* const keywords[N_KEYWORDS] = {
 	"class",
 	"actor",
 	"and",
-	"or"
+	"or",
+	"xor",
+	"true",
+	"false"
 };
 
 const char* const operators[N_OPERATORS] = {
@@ -52,7 +55,10 @@ const char* const operators[N_OPERATORS] = {
 	"^=",
 	"**=",
 	">>=",
-	"<<="
+	"<<=",
+	"&&",
+	"||",
+	"^^"
 };
 
 const char* const flags[N_FLAGS] = {

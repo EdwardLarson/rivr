@@ -20,6 +20,10 @@ y := 6
 
 # an inline flag # z :: -10
 
+q = true && false
+r = true and false
+s = q xor r
+
 bar := f()->int:
     func1 := f():
         func2 := f():
