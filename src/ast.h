@@ -1,3 +1,6 @@
+#ifndef AST_H
+#define AST_H
+
 #include "lexer.h"
 
 typedef enum {
@@ -41,7 +44,7 @@ typedef enum {
 				N_ASSIGN, // assign a value to a variable: has two children, the variable left value and value right value
 				N_CALL, // call a function: 1+n children for function right value and a number of argument right values
 				N_U_OPERATION, // operation applied to only one expression: has a operation, one child
-				N_B_OPERATION  // operation applied to two expressions: has an operation, two children
+				N_B_OPERATION,  // operation applied to two expressions: has an operation, two children
 	
 //----------------LVALUES
 //--------------------IDENTIFIERS
@@ -77,8 +80,6 @@ typedef struct _AST_Error {
 
 void free_error_stack(AST_Error* err);
 
-AST_Node* create_ast_node(Node_Type type, int n_children, void* data);
+AST_Node* create_ast_node(Node_Type type, int n_children, Typed_Token_Data data);
 
-AST_Node* tree_DECLARATION_BLOCK(const Token* token, Token** next_out, AST_Error* err_stack);
-
-AST_Node* tree_DECLARATION(const Token* token, Token** next_out, AST_Error* err_stack);
+#endif

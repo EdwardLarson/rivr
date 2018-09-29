@@ -1,4 +1,9 @@
+#ifndef LEXER_H
+#define LEXER_H
+
 #define LINE_BUFFER_S 1024
+
+#include <stdio.h>
 #include "keywords.h"
 
 #define INDENT_PER_BLOCK 4
@@ -114,3 +119,5 @@ int is_string(const char* token, Token_Type* type, Typed_Token_Data* data);
 int is_func_return(const char* token, Token_Type* type, Typed_Token_Data* data);
 int is_flag(const char* token, Token_Type* type, Typed_Token_Data* data);
 int is_valid_identifier(const char* token, Token_Type* type, Typed_Token_Data* data);
+
+#endif

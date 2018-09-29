@@ -7,6 +7,7 @@
 typedef enum Rivr_Command_{
 	R_NONE,
 	R_RUN, 
+	R_LEX,
 	R_PARSE
 } Rivr_Command;
 
@@ -24,6 +25,9 @@ int main(int argc, char** argv){
 				argi = rivr_run(argv, argi, argc);
 				break;
 				
+			case R_LEX:
+				break;
+				
 			case R_PARSE:
 				break;
 				
@@ -39,10 +43,14 @@ int main(int argc, char** argv){
 
 Rivr_Command parse_command(char* arg){
 	const char cmd_run[4] = "run";
+	const char cmd_lex[3] = "lex";
 	const char cmd_parse[6] = "parse";
 	
 	if (strcmp(arg, cmd_run) == 0){
 		return R_RUN;
+		
+	}else if (strcmp(arg, cmd_lex) == 0){
+		return R_LEX;
 		
 	}else if (strcmp(arg, cmd_parse) == 0){
 		return R_PARSE;

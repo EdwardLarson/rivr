@@ -1,3 +1,6 @@
+#ifndef KEYWORD_H
+#define KEYWORD_H
+
 typedef enum {
 	K_F,
 	K_INT,
@@ -79,3 +82,5 @@ typedef enum {
 #define N_FLAGS 4
 
 const char* const flags[N_FLAGS];
+
+#endif

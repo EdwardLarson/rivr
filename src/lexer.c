@@ -90,7 +90,7 @@ void free_typed_token(Typed_Token* tt){
 	free(tt);
 }
 
-#ifdef PARSER_ONLY
+#ifdef LEXER_ONLY
 int main(int argc, char** argv){
 	printf("Hello World!\n");
 	
