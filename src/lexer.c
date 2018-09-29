@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "parser.h"
+#include "lexer.h"
 
 void print_typed_token(const Typed_Token* tt){
 	switch (tt->type){
