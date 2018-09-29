@@ -37,7 +37,12 @@ globalFunc = f(int x, int x)->(int, int): return (x/y), (x-y)
 	// Use of a compiler flag (using '@') to define a public atom
 	// Compiler flags are stacked up and applied to the next expression, declaration, etc.
     #public
-    n :: 10
+    n := 10
+	
+	// an array of 10 ints
+	m_array := new {Array of int}(10)
+	
+	m_array_element := m_array[0]
     
 	// Definition of getter and setter methods
 	// The '...' in the compiler flag means that the stack of compiler flags are not cleared after being applied
@@ -70,15 +75,15 @@ class {MyCompositeClass} is {MyClass, PrettyPrintable, SomeComponent}:
     #public
     init ::
 		f(int z):
-			.MyClass(z * 2, z / 2)
-			.PrettyPrintable("My values are: ", ", ")
-			.SomeComponent(z, true, true)
+			new .MyClass(z * 2, z / 2)
+			new .PrettyPrintable("My values are: ", ", ")
+			new .SomeComponent(z, true, true)
     
     
     
     
 // Declaration of an object
-myObject := {MyCompositeClass}(10)
+myObject := new {MyCompositeClass} 10
 
 // The following are all valid:
 
@@ -99,11 +104,11 @@ bar(myObject, 2)
 // Though MyCompositeClass is also a MyClass, the compiler will only look for an init function at the level of MyCompositeClass
 // MyCompositeClass has no constructor defined for 2 int arguments so this will not compile
 // Constructors are treated differently from other methods in this regard
-myInvalidObject := {MyCompositeClass}(4, 5)
+myInvalidObject := new {MyCompositeClass}(4, 5)
 
 // Definition of a composite class which overrides some of its components' data
 class {MyCompositeClassButDifferent} is {MyClass, PrettyPrintable, SomeComponent}:
-    z := int
+    z :: int
     
 	// Class constructor which calls component's constructors
     #public

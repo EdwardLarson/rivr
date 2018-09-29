@@ -10,6 +10,15 @@ void free_error_stack(AST_Error* err){
     free(err);
 }
 
+AST_Node* create_ast_node(Node_Type type, int n_children, void* data){
+	AST_Node* node = malloc(sizeof(AST_Node));
+	
+	node->type = type;
+	node->children = malloc(n_children * sizeof(AST_Node*));
+	
+	return node;
+}
+
 // parse a declaration block from a stream of tokens
 AST_Node* tree_DECLARATION_BLOCK(const Typed_Token* token, Typed_Token** next_out, AST_Error* err_stack){
     AST_Node* block = malloc(sizeof(AST_Node));

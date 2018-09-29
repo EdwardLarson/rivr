@@ -19,10 +19,12 @@ typedef enum {
 	K_OR,
 	K_XOR,
 	K_TRUE,
-	K_FALSE
+	K_FALSE,
+	K_NEW,
+	K_OF
 } KEYWORD;
 
-#define N_KEYWORDS 21
+#define N_KEYWORDS 23
 const char* const keywords[N_KEYWORDS];
 
 typedef enum {

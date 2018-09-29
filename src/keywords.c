@@ -21,7 +21,9 @@ const char* const keywords[N_KEYWORDS] = {
 	"or",
 	"xor",
 	"true",
-	"false"
+	"false",
+	"new",
+	"of"
 };
 
 const char* const operators[N_OPERATORS] = {
