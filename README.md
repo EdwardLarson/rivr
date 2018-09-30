@@ -20,6 +20,14 @@ gcc src/rivr.c src/vm.c src/lexer.c src/parser.c src/keywords.c src/rv_strings.c
 
 * Run \<input-file\> as a rivr bytecode program
 
+./rivr lex \<input-file\>
+
+* Lex \<input-file\> to generate and print a list of typed tokens
+
+./rivr parse \<input-file\>
+
+* Parse \<input-file\> to generate a list of CFG symbols
+
 ### Writing Basic Programs
 gcc src/prog_writer.c src/vm.c src/rv_strings.c src/rv_functions.c -o prog_writer
 

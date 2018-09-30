@@ -45,6 +45,8 @@ typedef enum {
 	S_COLON,
 	S_KW_CLASS,
 	S_KW_IS,
+	S_KW_NEW,
+	S_KW_OF,
 	S_ENTERBLOCK,
 	S_EXITBLOCK,
 	S_CONSTANT,
@@ -76,7 +78,7 @@ typedef struct _CFG_Symbol{
 	union{
 		Typed_Token* token;
 		AST_Node* node;
-	};
+	} underlying;
 	
 	struct _CFG_Symbol* prev;
 	struct _CFG_Symbol* next;
@@ -98,6 +100,7 @@ typedef struct {
 CFG_Symbol* convert_to_cfg_symbols(Typed_Token* token);
 CFG_Symbol* token_to_symbol(Typed_Token* token);
 
+void print_cfg_symbol(CFG_Symbol* symbol);
 
 
 #endif

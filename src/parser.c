@@ -22,6 +22,70 @@ Reduction_Pattern patterns[] = {
 	*RESULT = last;                                    \
 }
 
+const char* global_symbol_names[] = {
+	[S_NONE           ] = "NONE",
+	[S_DECL_BLOCK     ] = "DECL_BLOCK",
+	[S_DECLARATION    ] = "DECLARATION",
+	[S_TYPE           ] = "TYPE",
+	[S_ID_CHAIN       ] = "ID_CHAIN",
+	[S_EXPRESSION     ] = "EXPRESSION",
+	[S_INHERIT        ] = "INHERIT",
+	[S_ID_LIST        ] = "ID_LIST",
+	[S_FUNC_DECL      ] = "FUNC_DECL",
+	[S_EXPR_IMPERATIVE] = "EXPR_IMPERATIVE",
+	[S_EXPR_BLOCK     ] = "EXPR_BLOCK",
+	[S_FUNC_ARGS      ] = "FUNC_ARGS",
+	[S_TYPE_LIST      ] = "TYPE_LIST",
+	[S_STATEMENT      ] = "STATEMENT",
+	[S_OPERABLE       ] = "OPERABLE",
+	[S_CALL_ARGS      ] = "CALL_ARGS",
+	[S_ELSE_F         ] = "ELSE_IF",
+	[S_FLAG_ACC       ] = "FLAG_ACC",
+	[S_ENDSTATEMENT   ] = "ENDSTATMENT",
+	[S_IDENTIFIER     ] = "IDENTIFIER",
+	[S_IDENTIFIER_ACC ] = "IDENTIFIER_ACC",
+	[S_PRIMITIVE      ] = "PRIMITIVE",
+	[S_OPEN_BRACK     ] = "OPEN_BRACK",
+	[S_CLOSE_BRACK    ] = "CLOSE_BRACK",
+	[S_KW_F           ] = "KW_F",
+	[S_KW_F_RET       ] = "FW_F_RET",
+	[S_OPEN_PARA      ] = "OPEN_PARA",
+	[S_CLOSE_PARA     ] = "CLOSE_PARA",
+	[S_OPEN_BRACE     ] = "OPEN_BRACE",
+	[S_CLOSE_BRACE    ] = "CLOSE_BRACE",
+	[S_COMMA          ] = "COMMA",
+	[S_DOT            ] = "DOT",
+	[S_COLON          ] = "COLON",
+	[S_KW_CLASS       ] = "KW_CLASS",
+	[S_KW_IS          ] = "KW_IS",
+	[S_KW_NEW         ] = "KW_NEW",
+	[S_KW_OF          ] = "KW_OF",
+	[S_ENTERBLOCK     ] = "ENTERBLOCK",
+	[S_EXITBLOCK      ] = "EXITBLOCK",
+	[S_CONSTANT       ] = "CONSTANT",
+	[S_BINARY_OP      ] = "BINARY_OP",
+	[S_UNARY_OP_R     ] = "UNARY_OP_R",
+	[S_UNARY_OP_L     ] = "UNARY_OP_L",
+	[S_ASSIGN         ] = "ASSIGN",
+	[S_DECL_ASSIGN    ] = "DECL_ASSIGN",
+	[S_DECL           ] = "DECL",
+	[S_KW_IF          ] = "KW_IF",
+	[S_KW_WHILE       ] = "KW_WHILE",
+	[S_KW_FOR         ] = "KW_FOR",
+	[S_KW_FOREACH     ] = "KW_FOREACH",
+	[S_KW_ELSE        ] = "KW_ELSE",
+	[S_CONTROL_FLOW   ] = "CONTROL_FLOW",
+	[S_RETURN         ] = "RETURN",
+	[S_FLAG           ] = "FLAG",
+	[S_END            ] = "END",
+};
+
+void print_cfg_symbol(CFG_Symbol* symbol){
+	if (symbol) printf("%s\n", global_symbol_names[symbol->symbol_id]);
+	
+	
+}
+
 
 /* Convert a linked list of typed tokens to a doubly linked list of cfg symbols
  * Each symbol may have either an underlying typed token or AST node
@@ -38,8 +102,12 @@ CFG_Symbol* convert_to_cfg_symbols(Typed_Token* token){
 		converted_symbol->next->prev = converted_symbol;
 		converted_symbol = converted_symbol->next;
 		
+		printf("\tConvert a token{%u} to a symbol{%u}\n", token->type, converted_symbol->symbol_id);
+		
 		token = token->next;
 	}
+	
+	converted_symbol->next = NULL;
 	
 	if (dummy_head.next){
 		dummy_head.next->prev = NULL;
@@ -155,6 +223,14 @@ CFG_Symbol* token_to_symbol(Typed_Token* token){
 					sym_id = S_CONSTANT;
 					break;
 					
+				case K_NEW:
+					sym_id = S_KW_NEW;
+					break;
+				
+				case K_OF:
+					sym_id = S_KW_OF;
+					break;
+					
 				default:
 					fprintf(stderr, "token_to_symbol(): Unrecognized keyword token %u\n", token->data.keyword);
 					exit(1);
@@ -175,15 +251,17 @@ CFG_Symbol* token_to_symbol(Typed_Token* token){
 			
 		case T_INTEGER:
 			node_type = N_INTEGER;
+			sym_id = S_CONSTANT;
 			break;
 			
 		case T_RATIONAL:
 			node_type = N_RATIONAL;
-			new_node = create_ast_node(N_RATIONAL, 0, token->data);
+			sym_id = S_CONSTANT;
 			break;
 			
 		case T_STRING:
 			node_type = N_STRING;
+			sym_id = S_CONSTANT;
 			break;
 			
 		case T_FUNC_RETURN:
@@ -305,16 +383,17 @@ CFG_Symbol* token_to_symbol(Typed_Token* token){
 	
 	
 	CFG_Symbol* symbol = malloc(sizeof(CFG_Symbol));
+	symbol->symbol_id = sym_id;
 	
 	if (node_type == N_NONE){
-		symbol->token = token;
+		symbol->underlying.token = token;
 	}else{
-		symbol->node = create_ast_node(node_type, node_n_children, node_data);
+		symbol->underlying.node = create_ast_node(node_type, node_n_children, node_data);
 		
 		// token data is not freed
 		// if token data is discarded (not reused by node),
 		// it must be discarded in above switch block
-		free(symbol->token);
+		free(symbol->underlying.token);
 	}
 	
 	return symbol;

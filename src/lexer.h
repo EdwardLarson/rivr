@@ -96,12 +96,13 @@ typedef struct Line_Vector_{
 	int n;
 } Line_Vector;
 
+Typed_Token* lex_file(FILE* fp, int* n_tokens);
 
 Token* next_token(FILE* fp);
 Token* finish_token(char* buffer, int i, char c, FILE* fp);
 Token* create_token(const char* buffer, int pos_end);
 Token* remove_comments(Token* list);
-Typed_Token* convert_to_proto(Token* t, int prev_indent);
+Typed_Token* mark_token_type(Token* t, int prev_indent);
 
 Typed_Token* generate_exit_blocks(Token* t, Typed_Token* typed_token, int prev_indent);
 

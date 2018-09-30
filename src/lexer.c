@@ -127,7 +127,7 @@ int main(int argc, char** argv){
 			
 			getchar();
 			
-			Typed_Token* tt = convert_to_proto(list_start, 0);
+			Typed_Token* tt = mark_token_type(list_start, 0);
 			Typed_Token* initial_tt = tt;
 			
 			printf("Done converting to typed tokens (function could use a name change though)\n");
@@ -147,6 +147,33 @@ int main(int argc, char** argv){
 	return 0;
 }
 #endif
+
+Typed_Token* lex_file(FILE* fp, int* n_tokens){
+	Token* current = next_token(fp);
+	Token* list_start = current;
+	
+	while (current){
+		current->next = next_token(fp);
+		current = current->next;
+	}
+	
+	//Line_Vector lines = get_line_numbers(fp);
+	
+	//printf("Read %d lines\n", lines.n);
+	
+	current = list_start;
+	int token_count = 0;
+	
+	while(current){
+		current = current->next;
+		++token_count;
+	}
+	
+	Typed_Token* tt = mark_token_type(list_start, 0);
+	if (n_tokens) *n_tokens = token_count;
+	
+	return tt;
+}
 
 // parser procedure:
 // parse a token
@@ -424,7 +451,7 @@ int is_newline(Token* t){
 	return t->token[0] == '\n';
 }
 
-Typed_Token* convert_to_proto(Token* t, int prev_indent){
+Typed_Token* mark_token_type(Token* t, int prev_indent){
 	if (!t){
 		return NULL;
 	}
@@ -471,7 +498,7 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 						// TO-DO: Error handling
 					}
 					
-					typed_token->next = convert_to_proto(t->next, typed_token->data.indent);
+					typed_token->next = mark_token_type(t->next, typed_token->data.indent);
 					
 				}else if (typed_token->data.indent < prev_indent){
 					// add INDENT_PER_BLOCK from data.indent until it matches previous indent
@@ -481,12 +508,12 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 					
 					typed_token = generate_exit_blocks(t, typed_token, prev_indent);
 					
-					original_exit_token->next = convert_to_proto(t->next, original_exit_token->data.indent);
+					original_exit_token->next = mark_token_type(t->next, original_exit_token->data.indent);
 				}else{
-					typed_token->next = convert_to_proto(t->next, typed_token->data.indent);
+					typed_token->next = mark_token_type(t->next, typed_token->data.indent);
 				}
 			}else{
-				typed_token->next = convert_to_proto(t->next, prev_indent);
+				typed_token->next = mark_token_type(t->next, prev_indent);
 			}
 			free(t);
 			
@@ -500,7 +527,7 @@ Typed_Token* convert_to_proto(Token* t, int prev_indent){
 	Token* next = t->next;
 	free(t);
 	
-	return convert_to_proto(next, prev_indent);
+	return mark_token_type(next, prev_indent);
 }
 
 Typed_Token* generate_exit_blocks(Token* t, Typed_Token* typed_token, int prev_indent){
