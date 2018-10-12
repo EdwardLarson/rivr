@@ -1,0 +1,125 @@
+Prog
+| Declaration_Block \END\
+
+Declaration_Block
+| \ENTER_BLOCK\ Declaration \END_STATEMENT\ Declaration_Series \EXIT_BLOCK\
+
+Declaration 
+| Lvalue :: Type
+| Lvalue := Rvalue
+| class \IDENTIFIER\ is Type : Declaration_block
+
+Declaration_Series 
+| \NULL\
+| Declaration \END_STATEMENT\ Declaration_Series
+
+Lvalue
+| Rvalue . \IDENTIFIER\
+| . \IDENTIFIER\
+| \IDENTIFIER\
+| Rvalue [ Rvalue ]
+
+Type
+| Ftype
+| { ClassList }
+| PRIMITIVE
+| [ CONSTANT KW_OF Type ]
+
+Class_List
+| Class_Name
+| Class_List , Class_Name
+
+Class_Name
+| \IDENTIFIER\
+| Class_Name . \IDENTIFIER\
+
+Ftype
+| f ( Func_Args ) -> ( Func_Returns_List )
+
+Func_Args
+| \NULL\
+| Func_Args_List
+
+Func_Args_List
+| Type \IDENTIFIER\
+| Func_Args_List , Type \IDENTIFIER\
+
+Func_Returns
+| \NULL\
+| Func_Returns_List
+
+Func_Returns_List
+| Type
+| Func_Returns_List , Type
+
+Procedure_Body
+| Statement \END_STATEMENT\
+| ENTER_BLOCK Statement_Block EXIT_BLOCK
+
+Statement_Block
+| Statement \END_STATEMENT\
+| Statement \END_STATEMENT\ Statement_Block \END_STATEMENT\
+
+Statement
+| return Return_List
+| Try_Catch
+| Lvalue ASSIGN Rvalue
+| Declaration
+| Lvalue UNARY_OP_R
+| Call
+| Control
+| Branch
+
+Return_List
+| \NULL\
+| Rvalue_List
+
+Rvalue_List
+| Rvalue
+| Rvalue , Rvalue_List
+
+Call
+| Lvalue ( Rvalue_List )
+
+Control
+| KW_BREAK
+| KW_CONTINUE
+| KW_WHILE Rvalue : Procedure_Body
+| KW_FOR Statement , Rvalue , Statement : Procedure_Body
+| KW_FOREACH \IDENTIFIER\ KW_IN Rvalue : Procedure_Body
+
+Branch
+| if Rvalue : Procedure_Body Elif_Series Else
+
+Else
+| \NULL\
+| else : Procedure_Body
+
+Elif_Series
+| \NULL\
+| elif Rvalue : Procedure_Body Elif_Series
+
+Try_Catch
+| try : Procedure_Body Catch_Series Finally
+
+Catch_Series
+| \NULL\
+| catch \IDENTIFIER\ : Procedure_Body Catch_Series
+
+Finally
+| \NULL\
+| finally : Procedure_Body
+
+Rvalue
+| Lvalue
+| Rvalue [ Rvalue ]
+| ( Rvalue )
+| Call
+| UNARY_OP_R Rvalue
+| Rvalue BINARY_OP Rvalue
+| Ftype : Procedure_Body
+| CONSTANT
+| new Type ( Return_List )
+| [ Rvalue_List ]
+| if Rvalue : Rvalue else : Rvalue
+| Rvalue is Type

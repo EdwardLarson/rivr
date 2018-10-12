@@ -40,7 +40,13 @@ globalFunc = f(int x, int x)->(int, int): return (x/y), (x-y)
     n := 10
 	
 	// an array of 10 ints
-	m_array := new {Array of int}(10)
+	m_array := [10 of int]
+	
+	// a matrix
+	m_matrix_3 := [3 of [3 of rat]]
+	
+	// explicit definition of a matrix
+	m_matrix_2 := [[1, 0], [0, 1]]
 	
 	m_array_element := m_array[0]
     
@@ -87,6 +93,7 @@ myObject := new {MyCompositeClass} 10
 
 // The following are all valid:
 
+comparison := myObject is {PrettyPrintable} // checks type and returns true
 print(myObject.get_x()) // .get_x is part of the MyClass component
 print(myObject.n) // again, n is part of the MyClass component
 myObject.pprint() // .pprint is part of the PrettyPrintable component
@@ -120,7 +127,7 @@ class {MyCompositeClassButDifferent} is {MyClass, PrettyPrintable, SomeComponent
 			
 	// Compiler flag needed to override a component's data
 	#public override
-	n :: 15 // redefines the n variable; this data will be returned if n is requested from an instance of MyCompositeClass, even if in the current context it is being 'viewed' as MyClass
+	n := 15 // redefines the n variable; this data will be returned if n is requested from an instance of MyCompositeClass, even if in the current context it is being 'viewed' as MyClass
 
 // Declaration of an actor    
 myActor := actor(globalFunc, 10, 10)
