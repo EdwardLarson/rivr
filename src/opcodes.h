@@ -5,67 +5,66 @@
 #define	I_AND			0x02
 #define	I_BRANCH		0x03
 #define	I_BITWISE		0x04
-#define	I_CALL			0x05
-#define I_DECR			0x06
-#define	I_DIV			0x07
-#define	I_EQ			0x08
-#define I_F_CALL		0x09
-#define I_F_CREATE		0x0A
-#define	I_GT			0x0B
-#define	I_HALT			0x0C
-#define I_INCR			0x0D
-#define	I_INPUT			0x0E
-#define	I_JUMP			0x0F
-#define	I_LSH			0x10
-#define	I_LT			0x11
-#define	I_M_ALLOC		0x12
-#define	I_M_FREE		0x13
-#define	I_M_LOAD		0x14
-#define	I_M_STORE		0x15
-#define	I_MOD			0x16
-#define	I_MOVE			0x17
-#define	I_MUL			0x18
-#define I_NOOP			0x19
-#define	I_NOT			0x1A
-#define	I_OR			0x1B
-#define I_OUTPUT		0x1C
-#define	I_POPFRAME		0x1D
-#define	I_PUSHFRAME		0x1E
-#define	I_POW			0x1F
-#define	I_RSH			0x20
-#define	I_SUB			0x21
-#define	I_TH_NEW		0x22
-#define	I_TH_JOIN		0x23
-#define	I_TH_KILL		0x24
-#define	I_XOR			0x25
+#define I_DECR			0x05
+#define	I_DIV			0x06
+#define	I_EQ			0x07
+#define I_F_CALL		0x08
+#define I_F_CREATE		0x09
+#define	I_GT			0x0A
+#define	I_HALT			0x0B
+#define I_INCR			0x0C
+#define	I_INPUT			0x0D
+#define	I_JUMP			0x0E
+#define	I_LSH			0x0F
+#define	I_LT			0x10
+#define	I_M_ALLOC		0x11
+#define	I_M_FREE		0x12
+#define	I_M_LOAD		0x13
+#define	I_M_STORE		0x14
+#define	I_MOD			0x15
+#define	I_MOVE			0x16
+#define	I_MUL			0x17
+#define I_NOOP			0x18
+#define	I_NOT			0x19
+#define	I_OR			0x1A
+#define I_OUTPUT		0x1B
+#define	I_POPFRAME		0x1C
+#define	I_PUSHFRAME		0x1D
+#define	I_POW			0x1E
+#define	I_RSH			0x1F
+#define	I_SUB			0x20
+#define	I_TH_NEW		0x21
+#define	I_TH_JOIN		0x22
+#define	I_TH_KILL		0x23
+#define	I_XOR			0x24
 
 
-#define HAS_RETURN(opcpde) (\
-	(opcode == I_ABS) | \
-	(opcode == I_ADD) | \
-	(opcode == I_AND) | \
-	(opcode == I_BITWISE) | \
-	(opcode == I_DECR) | \
-	(opcode == I_DIV) | \
-	(opcode == I_EQ) | \
-	(opcode == I_F_CREATE) | \
-	(opcode == I_INCR) | \
-	(opcode == I_INPUT) | \
-	(opcode == I_GT) | \
-	(opcode == I_LSH) | \
-	(opcode == I_LT) | \
-	(opcode == I_M_ALLOC) | \
-	(opcode == I_M_LOAD) | \
-	(opcode == I_MOD) | \
-	(opcode == I_MOVE) | \
-	(opcode == I_MUL) | \
-	(opcode == I_NOT) | \
-	(opcode == I_OR) | \
-	(opcode == I_POW) | \
-	(opcode == I_RSH) | \
-	(opcode == I_SUB) | \
-	(opcode == I_TH_NEW) | \
-	(opcode == I_XOR) \
+#define HAS_RETURN(Opcode) (\
+	(Opcode == I_ABS) | \
+	(Opcode == I_ADD) | \
+	(Opcode == I_AND) | \
+	(Opcode == I_BITWISE) | \
+	(Opcode == I_DECR) | \
+	(Opcode == I_DIV) | \
+	(Opcode == I_EQ) | \
+	(Opcode == I_F_CREATE) | \
+	(Opcode == I_INCR) | \
+	(Opcode == I_INPUT) | \
+	(Opcode == I_GT) | \
+	(Opcode == I_LSH) | \
+	(Opcode == I_LT) | \
+	(Opcode == I_M_ALLOC) | \
+	(Opcode == I_M_LOAD) | \
+	(Opcode == I_MOD) | \
+	(Opcode == I_MOVE) | \
+	(Opcode == I_MUL) | \
+	(Opcode == I_NOT) | \
+	(Opcode == I_OR) | \
+	(Opcode == I_POW) | \
+	(Opcode == I_RSH) | \
+	(Opcode == I_SUB) | \
+	(Opcode == I_TH_NEW) | \
+	(Opcode == I_XOR) \
 )
 
 

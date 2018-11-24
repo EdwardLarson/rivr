@@ -7,6 +7,11 @@ ifeq ($(DEBUG), yes)
 CFLAGS += -D DEBUG -g
 endif
 
+PROFILER=no
+ifeq ($(PROFILER), yes)
+CFLAGS += -pg
+endif
+
 ODIR=obj
 
 _DEPS = keywords.h opcodes.h parser.h rv_functions.h rv_strings.h rv_types.h vm.h version.h

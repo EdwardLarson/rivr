@@ -28,7 +28,7 @@ int write_functions(byte* prog);
 int write_fibonacci(byte* prog);
 int write_pushpop(byte* prog);
 
-int (*progf)(byte*) = write_pushpop;
+int (*progf)(byte*) = write_fibonacci;
 
 
 int main(int argc, char** argv){
@@ -1090,8 +1090,8 @@ int write_opcode(byte* prog, int pc, Operation op){
 	
 	if (!prog) return pc + 2;
 	
-	prog[pc] = op.bytes[0];
-	prog[pc + 1] = op.bytes[1];
+	prog[pc] = op.opcode;
+	prog[pc + 1] = op.subop;
 	
 	return pc + 2;
 }

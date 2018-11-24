@@ -29,27 +29,15 @@ int main(int argc, char** argv){
 Operation read_op(const byte* bytes, PCType pc){
 	Operation op;
 	
-	op.bytes[0] = bytes[pc];
-	op.bytes[1] = bytes[pc + 1];
+	memcpy(&op, &bytes[pc], 2);
 	
 	return op;
 }
 
-byte get_opcode(Operation op){
-	// first 6 bits (bits 0 to 6)
-	return (op.bytes[0] & 0xFC) >> 2;
-}
-
-byte get_subop(Operation op){
-	// bits 6 to 9
-	return ((op.bytes[0] & 0x03) << 2) | ((op.bytes[1] & 0xC0) >> 6);
-}
-
 Operation encode_operation(byte opcode, byte subop){
 	Operation op;
-	op.bytes[0] = 0xFC & (opcode << 2);
-	op.bytes[0] |= 0x03 & (subop >> 2);
-	op.bytes[1] = 0xC0 & (subop << 6);
+	op.opcode = opcode;
+	op.subop = subop;
 	
 	return op;
 }
@@ -346,8 +334,6 @@ byte read_byte(PCType pc, const Thread* th){
 void* run_thread(void* th_in){
 	Thread* th = (Thread*) th_in;
 	Operation op;
-	byte opcode;
-	byte subop;
 	PCType pc_next;
 	
 	Data args[4]; // temporary storage for up to 4 args
@@ -362,22 +348,20 @@ void* run_thread(void* th_in){
 		
 		pc_next = th->pc;
 		
-		op = read_op(th->prog, th->pc);
-		opcode = get_opcode(op);
-		subop = get_subop(op);
+		memcpy(&op, &th->prog[pc_next], 2);
 		
 		#ifdef DEBUG
 		printf("\tpc[%lu]-", th->pc);
-		printf("Opcode[%x]-Subop[%x]-", opcode, subop);
+		printf("Opcode[%x]-Subop[%x]-", op.code, op.subop);
 		printf("Status[%d]\n", th->status);
 		#endif
 		
 		pc_next += 2;
 		
-		switch(opcode){
+		switch(op.opcode){
 			
 		case I_ABS:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_NONE, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -414,7 +398,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 					
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -456,7 +440,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -480,7 +464,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case FORMAT3_SUBOP(SO_REGISTER, SO_AND):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -532,7 +516,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_DIV:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -599,7 +583,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_EQ:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -650,7 +634,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 					
 				case SO_PUSHFIRST:
 					push_frame(th);
@@ -666,7 +650,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_F_CREATE:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_RELATIVE):
 					args[0] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
@@ -733,7 +717,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_GT:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -817,7 +801,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case SO_NUMBER:
 					fscanf((FILE*) args[0].n, "%ld", &result.n);
 					while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
@@ -839,7 +823,7 @@ void* run_thread(void* th_in){
 			
 		case I_JUMP:
 		
-			switch(subop){
+			switch(op.subop){
 				case FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE):
 					#ifdef DEBUG
 					printf("Constant jump subop\n");
@@ -879,7 +863,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_LSH:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -916,7 +900,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_LT:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -983,7 +967,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_M_ALLOC:
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1009,7 +993,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case SO_OBJECT:
 					free(args[0].p);
 					break;
@@ -1036,7 +1020,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1062,7 +1046,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1117,7 +1101,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_MOD:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1154,7 +1138,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_MOVE:
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					result = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1175,7 +1159,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 					
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1227,7 +1211,7 @@ void* run_thread(void* th_in){
 			printf("\tNo-op, pc_next = %lu\n", pc_next);
 			#endif
 		
-			switch(subop){
+			switch(op.subop){
 				#ifdef DEBUG
 				case SO_NUMBER:
 					printf("\t\tnumber subop\n");
@@ -1246,7 +1230,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1270,7 +1254,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER):
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1380,7 +1364,7 @@ void* run_thread(void* th_in){
 			
 		case I_POW:
 			// Note: Power function is undefined for negative exponents
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1447,7 +1431,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_RSH:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1484,7 +1468,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_SUB:
-			switch(subop){
+			switch(op.subop){
 				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 					args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1551,7 +1535,7 @@ void* run_thread(void* th_in){
 			break;
 			
 		case I_TH_NEW:
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1607,7 +1591,7 @@ void* run_thread(void* th_in){
 			args[0] = *access_register(pc_next, th);
 			pc_next += 1;
 			
-			switch(subop){
+			switch(op.subop){
 				case SO_REGISTER:
 					args[1] = *access_register(pc_next, th);
 					pc_next += 1;
@@ -1630,14 +1614,14 @@ void* run_thread(void* th_in){
 		default:
 			printf("Rivr Error: Unknown opcode\n");
 			#ifdef DEBUG
-			printf("\tInvalid opcode %x\t", opcode);
+			printf("\tInvalid opcode %x\t", op.opcode);
 			#endif
 		
 		}
 		
-		if (HAS_RETURN(opcode)){
+		if (HAS_RETURN(op.opcode)){
 			#ifdef DEBUG
-			printf("\tWriting result of <%x> to register\n", opcode);
+			printf("\tWriting result of <%x> to register\n", op.opcode);
 			#endif
 			*access_register(pc_next, th) = result;
 			pc_next += 1;
