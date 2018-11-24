@@ -26,8 +26,9 @@ int write_branch(byte* prog);
 int write_threading(byte* prog);
 int write_functions(byte* prog);
 int write_fibonacci(byte* prog);
+int write_pushpop(byte* prog);
 
-int (*progf)(byte*) = write_fibonacci;
+int (*progf)(byte*) = write_pushpop;
 
 
 int main(int argc, char** argv){
@@ -963,6 +964,123 @@ int write_fibonacci(byte* prog){
 	record_pc(prog, label_ret_loc, &label_ret_ref, 1);
 	record_pc(prog, label_fib_array_alloc_loc, &label_fib_array_alloc_ref, 1);
 	record_pc(prog, label_fib_loop_loc, &label_fib_loop_ref, 1);
+	
+	return pc;
+}
+
+int write_pushpop(byte* prog){
+	int pc = 0;
+	
+	Operation copy_op = encode_operation(I_MOVE, SO_REGISTER);
+	Operation rel_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE));
+	Operation num_input_op = encode_operation(I_INPUT, SO_NUMBER);
+	Operation eq_op = encode_operation(I_EQ, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation not_op = encode_operation(I_NOT, SO_NONE);
+	Operation branch_op = encode_operation(I_BRANCH, SO_NONE);
+	Operation copy_cost_op = encode_operation(I_MOVE, SO_CONSTANT);
+	Operation push_frame_op = encode_operation(I_PUSHFRAME, SO_NONE);
+	Operation pop_frame_op = encode_operation(I_POPFRAME, SO_NONE);
+	Operation abs_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE));
+	Operation dyn_abs_jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE));
+	Operation add_op = encode_operation(I_ADD, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation num_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER));
+	
+	Data two;
+	two.n = 2;
+	
+	int label_resume_refs[2];
+	
+	// arg-read[0] = RESUME; usually don't write to read-registers, but the first frame needs to find the popframe and exit
+	pc = write_opcode(prog, pc, copy_cost_op);
+	label_resume_refs[0] = pc;
+	pc += sizeof(Data);
+	pc = write_register(prog, pc, 0, REG_RARG);
+	
+	// :RECURSE_START
+	int label_recurse_start_loc = pc;
+	
+	// n = stdin.read(int)
+	pc = write_opcode(prog, pc, num_input_op);
+	pc = write_register(prog, pc, 3, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// if n == 0 goto RETURN
+	pc = write_opcode(prog, pc, eq_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 0, REG_SPEC);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	pc = write_opcode(prog, pc, not_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	pc = write_opcode(prog, pc, branch_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	int label_return_ref = pc;
+	pc += sizeof(Data);
+	
+	// arg-write[0] = RESUME
+	pc = write_opcode(prog, pc, copy_cost_op);
+	label_resume_refs[1] = pc;
+	pc += sizeof(Data);
+	pc = write_register(prog, pc, 0, REG_WARG);
+	
+	// arg-write[1] = n
+	pc = write_opcode(prog, pc, copy_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_WARG);
+	
+	// PUSHFRAME
+	pc = write_opcode(prog, pc, push_frame_op);
+	
+	// goto RECURSE_START
+	pc = write_opcode(prog, pc, abs_jump_op);
+	int label_recurse_start_ref = pc;
+	pc += sizeof(Data);
+	
+	// :RESUME
+	int label_resume_loc = pc;
+	
+	// POPFRAME
+	pc = write_opcode(prog, pc, pop_frame_op);
+	
+	// print return-read[0]
+	pc = write_opcode(prog, pc, num_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_RRET);
+	
+	// n = n + return-read[0]
+	pc = write_opcode(prog, pc, add_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 0, REG_RRET);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// print n
+	pc = write_opcode(prog, pc, num_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// :RETURN
+	int label_return_loc = pc;
+	
+	// return-write[0] = n
+	pc = write_opcode(prog, pc, copy_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 0, REG_WRET);
+	
+	// print return-write[0]
+	pc = write_opcode(prog, pc, num_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_WRET);
+	
+	// goto arg-read[0]
+	pc = write_opcode(prog, pc, dyn_abs_jump_op);
+	pc = write_register(prog, pc, 0, REG_RARG);
+	
+	
+	record_pc(prog, label_recurse_start_loc, &label_recurse_start_ref, 1);
+	record_pc(prog, label_return_loc, &label_return_ref, 1);
+	record_pc(prog, label_resume_loc, label_resume_refs, 2);
 	
 	return pc;
 }

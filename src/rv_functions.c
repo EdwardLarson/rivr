@@ -98,44 +98,15 @@ void enclose_data_Function(Function* f, Data* data, byte reg){
 
 PCType load_Function(const Function* f, Thread* th){
 	
-	Register_Frame* frame = th->frame;
-	byte r_type;
-	byte n;
+	byte reg_address;
+	Data reg_value;
 	
 	for (int i = 0; i < f->n_enclosed; i++){
-		r_type = (f->registers[i] & 0xE0) >> 5;
-		n = f->registers[i] & 0x1F;
+		reg_address = f->registers[i];
+		reg_value = f->local_data[i];
 		
-		switch(r_type){
-			case 0x00:
-			case 0x01:
-				
-				n = f->registers[i] & 0x3F;
-				frame->v_registers[n] = f->local_data[i];
-				break;
-			case 0x02:
-				n = f->registers[i] & 0x1F;
-				
-				// shift argument registers outward to make room for arg in closure
-				for (int j = 31; j > n; j--){
-					// WARNING 1: this could break closure layout if 
-					// a_registers in f are not ordered (l to g)
-					// so make sure that always happens
-					// WARNING 2: Will overwrite the last _x_ argument
-					// registers, where _x_ is the number of argument
-					// registers in the closure
-					// This process is expensive so it may become optional in the future
-					
-					frame->a_registers[j] = frame->a_registers[j-1];
-				}
-				
-				frame->a_registers[n] = f->local_data[i];
-				break;
-			case 0x03:
-				n = f->registers[i] & 0x1F;
-				frame->r_registers[n] = f->local_data[i];
-				break;
-		}
+		th->rf->register_cache.all_registers[reg_address] = reg_value;
+		// TO-DO: argument values stored in cache vs argument values stored in closure
 	}
 	
 	return f->addr;

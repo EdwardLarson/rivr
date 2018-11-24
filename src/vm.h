@@ -8,11 +8,12 @@
 
 #define FRAME_STACK_SIZE 256
 
-#define TH_STAT_KILLED -2
-#define TH_STAT_FIN -1
-#define TH_STAT_WAIT 0
-#define TH_STAT_RDY 1
-#define TH_STAT_RUN 2
+# define TH_STAT_TOPRETURN	-3
+#define TH_STAT_KILLED		-2
+#define TH_STAT_FIN			-1
+#define TH_STAT_WAIT		 0
+#define TH_STAT_RDY			 1
+#define TH_STAT_RUN			 2
 
 #define CLEAR_DATA(data) data.n = 0;
 
@@ -66,7 +67,6 @@ typedef union Data_
 	byte bytes[8];
 } Data;
 
-
 // data is stored in registers:
 
 typedef struct Register_Frame_{
@@ -77,21 +77,36 @@ typedef struct Register_Frame_{
 	// (therefore each frame is just over 1 kb of memory, taking into account the two pointers and extra byte)
 
 	Data v_registers[64];
-	Data a_registers[32];
-	Data r_registers[32];
+	Data a_read_registers[32];
+	Data r_read_registers[32];
+	Data r_write_registers[32];
 	
 	struct Register_Frame_* nxt_frame;
 	struct Register_Frame_* prv_frame;
-	byte used;
 } Register_Frame;
 
 // registers are held in a container of register files
 // along with an accompanying set of global and special registers
 
 typedef struct Register_File_ {
-	Register_Frame frames[FRAME_STACK_SIZE];
-	Data g_registers[32];
-	Data s_registers[32];
+	Register_Frame* prev_frame;
+	Register_Frame* curr_frame;
+	Register_Frame* next_frame;
+	
+	union{
+		Data all_registers[256];
+		
+		struct{
+			Data v_registers[64];
+			Data a_read_registers[32];
+			Data r_read_registers[32];
+			Data a_write_registers[32];
+			Data r_write_registers[32];
+			Data g_registers[32];
+			Data s_registers[32];
+			
+		};
+	} register_cache;
 	
 	int references;
 } Register_File;
@@ -109,8 +124,6 @@ void dealloc_frames(Register_Frame* init_frame, Register_File* rf);
 
 typedef struct Thread_ {
 	Register_File* rf;
-	
-	Register_Frame* frame;
 	
 	const byte* prog;
 	PCType pc;

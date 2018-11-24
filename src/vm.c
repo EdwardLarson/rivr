@@ -57,11 +57,10 @@ Operation encode_operation(byte opcode, byte subop){
 
 int init_Register_File(Register_File* rf){
 	int i;
-	for (i = 0; i < FRAME_STACK_SIZE; i++){
-		rf->frames[i].nxt_frame = NULL;
-		rf->frames[i].prv_frame = NULL;
-		rf->frames[i].used = 0;
-	}
+	
+	rf->prev_frame = NULL;
+	rf->curr_frame = NULL;
+	rf->next_frame = NULL;
 	
 	rf->references = 0;
 	
@@ -69,33 +68,12 @@ int init_Register_File(Register_File* rf){
 }
 
 Register_Frame* next_free_frame(Register_File* rf){
-	int i;
-	for (i = 0; i < FRAME_STACK_SIZE; i++){
-		if (!(rf->frames[i].used)){
-			return &(rf->frames[i]);
-		}
-	}
 	
 	return NULL;
 }
 
 Register_Frame* alloc_frame(Register_File* rf, Register_Frame* prv){
-	Register_Frame* frame = next_free_frame(rf);
-	
-	if (!frame){
-		#ifdef DEBUG
-		printf("\tWarning: dynamic frame allocation\n");
-		#endif
-		
-		frame = malloc(sizeof(Register_Frame));
-		if (!frame){
-			// out of frame stack space and out of heap memory
-			// TO-DO: ERROR out of memory
-			return NULL;
-		}
-	}
-	
-	frame->used = 1;
+	Register_Frame* frame = calloc(1, sizeof(Register_Frame));
 	frame->prv_frame = prv;
 	frame->nxt_frame = NULL;
 	
@@ -110,14 +88,9 @@ void dealloc_frames(Register_Frame* init_frame, Register_File* rf){
 	}
 	
 	Register_Frame* tmp;
-	while(init_frame){
+	while (init_frame){
 		tmp = init_frame->nxt_frame;
-		if ( (init_frame >= rf->frames) && (init_frame < &(rf->frames[FRAME_STACK_SIZE - 1]) ) ){
-			// frame is within bounds of register file's frame stack
-			// no need to deallocate, will be freed when register file is
-		}else{
-			free(init_frame);
-		}
+		free(init_frame);
 		init_frame = tmp;
 	}
 }
@@ -126,18 +99,20 @@ void init_Thread(Thread* th, Register_File* rf, const byte* prog, PCType prog_le
 	th->rf = rf;
 	th->rf->references += 1;
 	
-	th->frame = alloc_frame(rf, NULL);
-	th->frame->nxt_frame = alloc_frame(rf, th->frame);
+	th->rf->prev_frame = alloc_frame(rf, NULL);
+	th->rf->curr_frame = alloc_frame(rf, th->rf->prev_frame);
+	th->rf->next_frame = alloc_frame(rf, th->rf->curr_frame);
 	
-	init_spec_registers(rf->s_registers);
+	th->rf->curr_frame->nxt_frame = th->rf->next_frame;
+	
+	
+	init_spec_registers(rf->register_cache.s_registers);
 	
 	th->prog = prog;
 	th->prog_len = prog_len;
 	th->pc = pc_start;
 	
 	th->status = TH_STAT_RDY;
-	
-	th->tid = pthread_self();
 }
 
 void init_spec_registers(Data* registers){
@@ -172,17 +147,10 @@ Thread* fork_Thread(const Thread* parent, PCType pc_start){
 Thread* create_child_Thread(const Thread* parent, PCType pc_start){
 	Thread* th = malloc(sizeof(Thread));
 	
-	th->rf = parent->rf;
-	th->rf->references += 1;
+	Register_File* rf = calloc(1, sizeof(Register_File));
+	init_Register_File(th->rf);
 	
-	th->frame = alloc_frame(th->rf, NULL);
-	th->frame->nxt_frame = alloc_frame(th->rf, th->frame);
-	
-	th->prog = parent->prog;
-	th->pc = pc_start;
-	th->prog_len = parent->prog_len;
-	
-	th->status = TH_STAT_RDY;
+	init_Thread(th, rf, parent->prog, parent->prog_len, pc_start);
 	
 	return th;
 }
@@ -196,7 +164,7 @@ void start_Thread(Thread* th){
 
 
 void teardown_Thread(Thread* th){
-	dealloc_frames(th->frame, th->rf);
+	dealloc_frames(th->rf->curr_frame, th->rf);
 	th->rf->references -= 1;
 	
 	if (th->rf->references == 0){
@@ -218,21 +186,131 @@ void teardown_Thread(Thread* th){
 }
 
 void push_frame(Thread* th){
-	th->frame = th->frame->nxt_frame;
 	
-	if (!th->frame->nxt_frame) 
-		th->frame->nxt_frame = alloc_frame(th->rf, th->frame);
+	Register_Frame* original_prev_frame = th->rf->prev_frame;
+	Register_Frame* original_curr_frame = th->rf->curr_frame;
+	Register_Frame* original_next_frame = th->rf->next_frame;
+	
+	#ifdef DEBUG
+	printf("push_frame: o_prev<%p>, o_curr<%p>, o_next<%p>\n", 
+		original_prev_frame,
+	    original_curr_frame,
+	    original_next_frame);
+	#endif
+	
+	// copy cache registers to frame:
+	Data* src;
+	Data* dest;
+	int width;
+	// copy var registers
+	src = th->rf->register_cache.v_registers;
+	dest = original_curr_frame->v_registers;
+	width = 64;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy arg_read registers
+	src = th->rf->register_cache.a_read_registers;
+	dest = original_curr_frame->a_read_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy ret_read registers
+	src = th->rf->register_cache.r_read_registers;
+	dest = original_curr_frame->r_read_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy ret_write_registers
+	src = th->rf->register_cache.r_write_registers;
+	dest = original_curr_frame->r_write_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy written args to arg_read registers
+	src = th->rf->register_cache.a_write_registers;
+	dest = th->rf->register_cache.a_read_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	th->rf->prev_frame = original_curr_frame;
+	th->rf->curr_frame = original_next_frame;
+	if (th->rf->curr_frame->nxt_frame == NULL){
+		th->rf->curr_frame->nxt_frame = alloc_frame(th->rf, th->rf->curr_frame);
+	}
+	th->rf->next_frame = th->rf->curr_frame->nxt_frame;
+	
+	#ifdef DEBUG
+	printf("push_frame: a_prev<%p>, a_curr<%p>, a_next<%p>\n", 
+		th->rf->prev_frame,
+	    th->rf->curr_frame,
+	    th->rf->next_frame);
+	#endif
 }
 
 void pop_frame(Thread* th){
-	if (!th->frame->prv_frame){
-		//TO-DO: Error when unable to pop further (stack underflow)
-		#ifdef DEBUG
-		printf("/tStack underflow!\n");
-		#endif
-	}else{
-		th->frame->used = 0;
-		th->frame = th->frame->prv_frame;
+	Register_Frame* original_prev_frame = th->rf->prev_frame;
+	Register_Frame* original_curr_frame = th->rf->curr_frame;
+	Register_Frame* original_next_frame = th->rf->next_frame;
+	
+	#ifdef DEBUG
+	printf("pop_frame: o_prev<%p>, o_curr<%p>, o_next<%p>\n", 
+		original_prev_frame,
+	    original_curr_frame,
+	    original_next_frame);
+	#endif
+	
+	// copy cache registers from frame:
+	Data* src;
+	Data* dest;
+	int width;
+	// copy var registers
+	src = original_prev_frame->v_registers;
+	dest = th->rf->register_cache.v_registers;
+	width = 64;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy arg_read registers
+	src = original_prev_frame->a_read_registers;
+	dest = th->rf->register_cache.a_read_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy ret_read registers
+	src = original_prev_frame->r_read_registers;
+	dest = th->rf->register_cache.r_read_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy written returns to ret_read registers
+	src = th->rf->register_cache.r_write_registers;
+	dest = th->rf->register_cache.r_read_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	// copy ret_write_registers
+	src = original_prev_frame->r_write_registers;
+	dest = th->rf->register_cache.r_write_registers;
+	width = 32;
+	memcpy(dest, src, width * sizeof(Data));
+	
+	th->rf->prev_frame = original_prev_frame->prv_frame;
+	th->rf->curr_frame = original_prev_frame;
+	th->rf->next_frame = original_curr_frame;
+	
+	free(original_next_frame);
+	th->rf->next_frame->nxt_frame = NULL;
+	
+	#ifdef DEBUG
+	printf("pop_frame: a_prev<%p>, a_curr<%p>, a_next<%p>\n", 
+		th->rf->prev_frame,
+	    th->rf->curr_frame,
+	    th->rf->next_frame);
+	#endif
+	
+	
+	// program should automatically exit when top-level frame is popped (no prev)
+	if (th->rf->prev_frame == NULL){
+		th->status = TH_STAT_TOPRETURN;
 	}
 }
 
@@ -240,62 +318,8 @@ Data* access_register(PCType pc, const Thread* th){
 	
 	byte r = th->prog[pc];
 	
-	// get first 3 bits for register type
-	byte r_type = (r & 0xE0) >> 5;
+	return &(th->rf->register_cache.all_registers[r]);
 	
-	// get last 5 bits for register number
-	byte n = (r & 0x1F);
-	
-	switch (r_type){
-		
-	case 0x00:
-	case 0x01:
-		// variable register
-		n = (r & 0x3F); // twice as many variable registers as other types, so one more bit is needed to store their n
-		
-		return &(th->frame->v_registers[n]);
-		break;
-	case 0x02:
-		// argument read register
-		return &(th->frame->a_registers[n]);
-		break;
-	case 0x03:
-		// return read register
-		return &(th->frame->r_registers[n]);
-		break;
-	case 0x04:
-		// argument virtual write register
-		
-		if (th->frame->nxt_frame){
-			return &(th->frame->nxt_frame->a_registers[n]);
-		}else{
-			// TO-DO: ERROR when attempting to write to next frame from last frame
-			return NULL;
-		}
-		break;
-	case 0x05:
-		// return virtual write register
-		
-		if (th->frame->prv_frame){
-			return &(th->frame->prv_frame->r_registers[n]);
-		}else{
-			// TO-DO: ERROR when attempting to write to previous frame from first frame
-			return NULL;
-		}
-		break;
-	case 0x06:
-		//  global register
-		return &(th->rf->g_registers[n]);
-		break;
-	case 0x07:
-		// special register
-		return &(th->rf->s_registers[n]);
-		break;
-	default:
-		// unknown register type
-		return NULL;
-		break;
-	}
 }
 
 Data access_constant(PCType pc, const Thread* th){
@@ -329,6 +353,7 @@ void* run_thread(void* th_in){
 	Data args[4]; // temporary storage for up to 4 args
 	Data result;
 	
+	th->tid = pthread_self();
 	th->status = TH_STAT_RUN;
 	
 	while ((th->status > 0) && (th->pc < th->prog_len)){
@@ -828,7 +853,7 @@ void* run_thread(void* th_in){
 				case FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE):
 					args[0] = access_constant(pc_next, th);
 					pc_next += sizeof(Data);
-					pc_next = th->pc + args[0].addr;
+					pc_next += args[0].addr;
 					break;
 					
 				case FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE):
@@ -845,7 +870,7 @@ void* run_thread(void* th_in){
 				case FORMAT3_SUBOP(SO_REGISTER, SO_RELATIVE):
 					args[0] = *access_register(pc_next, th);
 					pc_next += 1;
-					pc_next = th->pc + args[0].addr;
+					pc_next += args[0].addr;
 					break;
 				
 				default:
@@ -1623,8 +1648,11 @@ void* run_thread(void* th_in){
 	}
 	
 	#ifdef DEBUG
+	printf("Thread exiting\n");
 	if (th->pc >= th->prog_len){
-		printf("PC(%lu) outside of program bounds\n", th->pc);
+		printf("\nPC(%lu) outside of program bounds\n", th->pc);
+	}else{
+		printf("Exited with status %d\n", th->status);
 	}
 	#endif
 	
