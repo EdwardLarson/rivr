@@ -1,10 +1,15 @@
 SRCDIR=src
 CC=gcc
-CFLAGS=
+CFLAGS=-Wall
 
 DEBUG=no
 ifeq ($(DEBUG), yes)
 CFLAGS += -D DEBUG -g
+endif
+
+PROFILER=no
+ifeq ($(PROFILER), yes)
+CFLAGS += -pg
 endif
 
 ODIR=obj

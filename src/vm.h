@@ -85,6 +85,21 @@ typedef struct Register_Frame_{
 	struct Register_Frame_* prv_frame;
 } Register_Frame;
 
+typedef union{
+	Data all_registers[256];
+		
+	struct{
+		Data v_registers[64];
+		Data a_read_registers[32];
+		Data r_read_registers[32];
+		Data a_write_registers[32];
+		Data r_write_registers[32];
+		Data g_registers[32];
+		Data s_registers[32];
+		
+	};
+} Register_Cache;
+
 // registers are held in a container of register files
 // along with an accompanying set of global and special registers
 
@@ -93,20 +108,7 @@ typedef struct Register_File_ {
 	Register_Frame* curr_frame;
 	Register_Frame* next_frame;
 	
-	union{
-		Data all_registers[256];
-		
-		struct{
-			Data v_registers[64];
-			Data a_read_registers[32];
-			Data r_read_registers[32];
-			Data a_write_registers[32];
-			Data r_write_registers[32];
-			Data g_registers[32];
-			Data s_registers[32];
-			
-		};
-	} register_cache;
+	Register_Cache register_cache;
 	
 	int references;
 } Register_File;
@@ -144,6 +146,7 @@ void push_frame(Thread* th);
 void pop_frame(Thread* th);
 
 Data* access_register(PCType pc, const Thread* th);
+
 Data access_constant(PCType pc, const Thread* th);
 byte read_byte(PCType pc, const Thread* th);
 

@@ -28,7 +28,7 @@ int write_functions(byte* prog);
 int write_fibonacci(byte* prog);
 int write_pushpop(byte* prog);
 
-int (*progf)(byte*) = write_pushpop;
+int (*progf)(byte*) = write_fibonacci;
 
 
 int main(int argc, char** argv){

@@ -5,10 +5,37 @@
 #include <malloc.h>
 #include <errno.h>
 
+#define WRITE_OP_RESULT(PC_Next, Thread, Result) \
+	do { *access_register(PC_Next, Thread) = Result; PC_Next += 1; } while(0)
+
+#ifdef DEBUG
+#define LOAD_NEXT_OPCODE(PC_Next, Thread, Op, Opcode, Subop) \
+	do { if ((Thread->status <= 0) || (PC_Next >= Thread->prog_len)) goto L_END_OF_PROGRAM; \
+			Thread->pc = PC_Next; \
+			Op = read_op(Thread->prog, th->pc); \
+			Opcode = get_opcode(Op); \
+			Subop = get_subop(Op); \
+			PC_Next += 2; \
+			printf("\tpc[%lu]-", Thread->pc); \
+			printf("Opcode[%x]-Subop[%x]-", Opcode, Subop); \
+			printf("Status[%d]\n", Thread->status); \
+	} while(0)
+#else
+#define LOAD_NEXT_OPCODE(PC_Next, Thread, Op, Opcode, Subop) \
+do { if ((Thread->status <= 0) || (PC_Next >= Thread->prog_len)) goto L_END_OF_PROGRAM; \
+		Thread->pc = PC_Next; \
+		Op = read_op(Thread->prog, th->pc); \
+		Opcode = get_opcode(Op); \
+		Subop = get_subop(Op); \
+		PC_Next += 2; \
+} while(0)
+#endif
+		
+#define JUMP_TO_NEXT_INSTRUCTION(ITable, Opcode) \
+	goto *(ITable[Opcode])
+
 #ifdef VM_ONLY
 int main(int argc, char** argv){
-	printf("Hello World!\n");
-	
 	Register_File rf;
 	init_Register_File(&rf);
 	
@@ -56,8 +83,6 @@ Operation encode_operation(byte opcode, byte subop){
 
 
 int init_Register_File(Register_File* rf){
-	int i;
-	
 	rf->prev_frame = NULL;
 	rf->curr_frame = NULL;
 	rf->next_frame = NULL;
@@ -314,7 +339,7 @@ void pop_frame(Thread* th){
 	}
 }
 
-Data* access_register(PCType pc, const Thread* th){
+inline Data* access_register(PCType pc, const Thread* th){
 	
 	byte r = th->prog[pc];
 	
@@ -339,7 +364,7 @@ Data access_constant(PCType pc, const Thread* th){
 	return data;
 }
 
-byte read_byte(PCType pc, const Thread* th){
+inline byte read_byte(PCType pc, const Thread* th){
 	return th->prog[pc];
 }
 
@@ -356,1296 +381,1412 @@ void* run_thread(void* th_in){
 	th->tid = pthread_self();
 	th->status = TH_STAT_RUN;
 	
-	while ((th->status > 0) && (th->pc < th->prog_len)){
+	void* instruction_table[] = {
+		&&L_ABS,
+		&&L_ADD,
+		&&L_AND,
+		&&L_BRANCH,
+		&&L_BITWISE,
+		&&L_DECR,
+		&&L_DIV,
+		&&L_EQ,
+		&&L_F_CALL,
+		&&L_F_CREATE,
+		&&L_GT,
+		&&L_HALT,
+		&&L_INCR,
+		&&L_INPUT,
+		&&L_JUMP,
+		&&L_LSH,
+		&&L_LT,
+		&&L_M_ALLOC,
+		&&L_M_FREE,
+		&&L_M_LOAD,
+		&&L_M_STORE,
+		&&L_MOD,
+		&&L_MOVE,
+		&&L_MUL,
+		&&L_NOOP,
+		&&L_NOT,
+		&&L_OR,
+		&&L_OUTPUT,
+		&&L_POPFRAME,
+		&&L_PUSHFRAME,
+		&&L_POW,
+		&&L_RSH,
+		&&L_SUB,
+		&&L_TH_NEW,
+		&&L_TH_JOIN,
+		&&L_TH_KILL,
+		&&L_XOR
+	};
 		
-		CLEAR_DATA(result);
+	CLEAR_DATA(result);
+	
+	pc_next = th->pc;
+	
+	LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+	goto *(instruction_table[opcode]);
+	
+	#if 0
+	
+	pc_next = th->pc;
+	
+	op = read_op(th->prog, th->pc);
+	opcode = get_opcode(op);
+	subop = get_subop(op);
+	
+	#ifdef DEBUG
+	printf("\tpc[%lu]-", th->pc);
+	printf("Opcode[%x]-Subop[%x]-", opcode, subop);
+	printf("Status[%d]\n", th->status);
+	#endif
+	
+	pc_next += 2;
+	
+	#endif
 		
-		pc_next = th->pc;
+	L_ABS:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_NONE, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				result.n = (args[0].n < 0) ? (-1 * args[0].n) : (args[0].n);
+				
+				break;
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_NONE, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				result.n = (args[0].n < 0) ? (-1 * args[0].n) : (args[0].n);
+				
+				break;
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_NONE, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				result.d = (args[0].d < 0) ? (-1 * args[0].d) : (args[0].d);
+				
+				break;
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_NONE, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				result.d = (args[0].d < 0) ? (-1 * args[0].d) : (args[0].d);
+				
+				break;
+			default:
+				break;
+		}
 		
-		op = read_op(th->prog, th->pc);
-		opcode = get_opcode(op);
-		subop = get_subop(op);
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+		
+	L_ADD:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+				
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n + args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n + args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = args[0].d + args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.d = args[0].d + args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_AND:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case SO_REGISTER:
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].b && args[1].b;
+				break;
+				
+			case SO_CONSTANT:
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].b && args[1].b;
+				break;
+			
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_BITWISE:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case FORMAT3_SUBOP(SO_REGISTER, SO_AND):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n & args[1].n;
+				break;
+				
+			case FORMAT3_SUBOP(SO_REGISTER, SO_NOT):
+				
+				result.n = ~(args[0].n);
+				break;
+			
+			case FORMAT3_SUBOP(SO_REGISTER, SO_OR):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n | args[1].n;
+				break;
+				
+			case FORMAT3_SUBOP(SO_REGISTER, SO_XOR):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n ^ args[1].n;
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_BRANCH:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		if (args[0].b){
+			pc_next += sizeof(Data);
+		}else{
+			args[1] = access_constant(pc_next, th);
+			pc_next = args[1].addr;
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		goto *(instruction_table[opcode]);
+		
+	L_DECR:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		result.n = args[0].n - 1;
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_DIV:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n / args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n / args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n / args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = args[0].d / args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.d = args[0].d / args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = args[0].d / args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_EQ:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].n == args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].n == args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].d == args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].d == args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_F_CALL:
+		
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+				
+			case SO_PUSHFIRST:
+				push_frame(th);
+				// fall into next case
+			case SO_DIRECT:
+				pc_next = load_Function(args[0].f, th);
+				break;
+				
+			default:
+				break;
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_F_CREATE:
+		switch(subop){
+			case FORMAT4_SUBOP(SO_NOCLOSURE, SO_RELATIVE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.f = create_Function(th->pc + args[0].addr, 0);
+				
+				break;
+				
+			case FORMAT4_SUBOP(SO_NOCLOSURE, SO_ABSOLUTE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				result.f = create_Function(args[0].addr, 0);
+				
+				break;
+				
+			case FORMAT4_SUBOP(SO_CLOSURE, SO_RELATIVE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1].b = read_byte(pc_next, th);
+				pc_next += 1;
+				
+				result.f = create_Function(th->pc + args[0].addr, (int) args[1].b);
+				
+				for(int i = 0; i < args[1].b; i++){
+					enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
+					pc_next += 1;
+				}
+				
+				break;
+				
+			case FORMAT4_SUBOP(SO_CLOSURE, SO_ABSOLUTE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				args[1].b = read_byte(pc_next, th);
+				pc_next += 1;
+				
+				result.f = create_Function(args[0].addr, (int) args[1].b);
+				
+				
+				for (int i = 0; i < args[1].b; i++){
+					enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
+					pc_next += 1;
+				}
+				
+				break;
+				
+			case SO_CLONE_F:
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				args[1].b = read_byte(pc_next, th);
+				pc_next += 1;
+				
+				result.f = copy_Function(args[0].f);
+				
+				for (int i = 0; i < args[1].b; i++){
+					enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
+					pc_next += 1;
+				}
+				
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_GT:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].n > args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].n > args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += sizeof(1);
+				
+				result.b = args[0].n > args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].d > args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].d > args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += sizeof(1);
+				
+				result.b = args[0].d > args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_HALT:
+		#ifdef DEBUG
+		printf("\tProgram halted.\n");
+		#endif
+		th->status = TH_STAT_FIN;
+		
+		goto L_END_OF_PROGRAM;
+		
+	L_INCR:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		result.n = args[0].n + 1;
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_INPUT:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case SO_NUMBER:
+				fscanf((FILE*) args[0].n, "%ld", &result.n);
+				while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
+				break;
+			case SO_RATIONAL:
+				fscanf((FILE*) args[0].n, "%lf", &result.d);
+				while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
+				break;
+			case SO_STRING:
+				result.s = read_into_string((FILE*) args[0].n);
+				break;
+			case SO_BOOLEAN:
+				result.b = read_into_bool((FILE*) args[0].n);
+				break;
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_JUMP:
+	
+		switch(subop){
+			case FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE):
+				#ifdef DEBUG
+				printf("Constant jump subop\n");
+				#endif
+				
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				pc_next = args[0].addr;
+				break;
+				
+			case FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				pc_next += args[0].addr;
+				break;
+				
+			case FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE):
+				#ifdef DEBUG
+				printf("Register jump subop\n");
+				#endif
+			
+			
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				pc_next = args[0].addr;
+				break;
+				
+			case FORMAT3_SUBOP(SO_REGISTER, SO_RELATIVE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				pc_next += args[0].addr;
+				break;
+			
+			default:
+				break;
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_LSH:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n << args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n << args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n << args[1].n;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_LT:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].n < args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].n < args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += sizeof(1);
+				
+				result.b = args[0].n < args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].d < args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].d < args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += sizeof(1);
+				
+				result.b = args[0].d < args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_M_ALLOC:
+		switch(subop){
+			case SO_REGISTER:
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.p = calloc(args[0].n, sizeof(Data));
+				break;
+			case SO_CONSTANT:
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				#ifdef DEBUG
+				printf("\tallocating array with length %ld\n", args[0].n);
+				#endif
+				
+				result.p = calloc(args[0].n, sizeof(Data));
+				break;
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_M_FREE:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case SO_OBJECT:
+				free(args[0].p);
+				break;
+				
+			case SO_STRING:
+				string_destroy(args[0].s);
+				break;
+				
+			case SO_THREAD:
+				teardown_Thread(args[0].t);
+				break;
+				
+			case SO_FUNCTION:
+				teardown_Function(args[0].f);
+				break;
+				
+			default:
+				break;
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_M_LOAD:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case SO_REGISTER:
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result = ( (Data*) args[0].p )[ args[1].n ];
+				
+				break;
+				
+			case SO_CONSTANT:
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result = ( (Data*) args[0].p )[ args[1].n ];
+				
+				break;
+			
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_M_STORE:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[2] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				( (Data*) args[0].p )[ args[2].n ] = args[1];
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[2] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				#ifdef DEBUG
+				printf("\tpreparing to store to %p with offset %ld\n", args[0].p, args[2].n);
+				#endif
+				
+				( (Data*) args[0].p )[ args[2].n ] = args[1];
+				
+				#ifdef DEBUG
+				printf("\tstored\n");
+				#endif
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[2] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				( (Data*) args[0].p )[ (size_t) args[2].n ] = args[1];
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_CONSTANT, SO_NONE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[2] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				( (Data*) args[0].p )[ args[2].n ] = args[1];
+				
+				break;
+			
+			default:
+				break;
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_MOD:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n % args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n % args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n % args[1].n;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_MOVE:
+		switch(subop){
+			case SO_REGISTER:
+				result = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				break;
+			case SO_CONSTANT:
+				result = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_MUL:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+				
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n * args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n * args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = args[0].d * args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.d = args[0].d * args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_NOT:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		result.b = !(args[0].b);
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_NOOP:
 		
 		#ifdef DEBUG
-		printf("\tpc[%lu]-", th->pc);
-		printf("Opcode[%x]-Subop[%x]-", opcode, subop);
-		printf("Status[%d]\n", th->status);
+		printf("\tNo-op, pc_next = %lu\n", pc_next);
+		#endif
+	
+		switch(subop){
+			#ifdef DEBUG
+			case SO_NUMBER:
+				printf("\t\tnumber subop\n");
+				break;
+			case SO_HASHTABLE:
+				printf("\t\thashtable subop\n");
+				break;
+			#endif
+			default:
+				break;
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_OR:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case SO_REGISTER:
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = args[0].b || args[1].b;
+				break;
+				
+			case SO_CONSTANT:
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = args[0].b || args[1].b;
+				break;
+			
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_OUTPUT:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				fprintf((FILE*) args[0].n, "%ld", args[1].n);
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_RATIONAL):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				fprintf((FILE*) args[0].n, "%f", args[1].d);
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_OBJECT):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				fprintf((FILE*) args[0].n, "obj<%p>", args[1].p);
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_STRING):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				string_print(args[1].s, (FILE*) args[0].n);
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_THREAD):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				fprintf((FILE*) args[0].n, "thr<%p>", args[1].t);
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				fprintf((FILE*) args[0].n, "fun<%p>{%d enclosed}", args[1].f, args[1].f->n_enclosed);
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_BOOLEAN):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				if (args[1].b){
+					fprintf((FILE*) args[0].n, "True");
+				}else{
+					fprintf((FILE*) args[0].n, "False");
+				}
+				break;
+			case FORMAT2_SUBOP(SO_REGISTER, SO_HASHTABLE):
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				fprintf((FILE*) args[0].n, "htb<%p>", args[1].h);
+				break;
+				
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_NUMBER):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "%ld", args[1].n);
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_RATIONAL):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "%f", args[1].d);
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_OBJECT):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "obj<%p>", args[1].p);
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_STRING):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "%.*s", 8, args[1].bytes);
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_THREAD):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "thr<%p>", args[1].t);
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_FUNCTION):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "fun<%lx>", args[1].addr);
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_BOOLEAN):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				if (args[1].b){
+					fprintf((FILE*) args[0].n, "True");
+				}else{
+					fprintf((FILE*) args[0].n, "False");
+				}
+				break;
+			case FORMAT2_SUBOP(SO_CONSTANT, SO_HASHTABLE):
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				fprintf((FILE*) args[0].n, "htb<%p>", args[1].h);
+				break;
+			
+			default:
+				break;
+		}
+		
+		#ifdef DEBUG
+		printf("\n\tprint accomplished\n");
 		#endif
 		
-		pc_next += 2;
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
 		
-		switch(opcode){
-			
-		case I_ABS:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_NONE, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					result.n = (args[0].n < 0) ? (-1 * args[0].n) : (args[0].n);
-					
-					break;
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_NONE, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					result.n = (args[0].n < 0) ? (-1 * args[0].n) : (args[0].n);
-					
-					break;
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_NONE, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					result.d = (args[0].d < 0) ? (-1 * args[0].d) : (args[0].d);
-					
-					break;
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_NONE, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					result.d = (args[0].d < 0) ? (-1 * args[0].d) : (args[0].d);
-					
-					break;
-				default:
-					break;
-			}
-			
-			*access_register(pc_next, th) = result;
-			
-			break;
-			
-		case I_ADD:
-			args[0] = *access_register(pc_next, th);
+	L_POPFRAME:
+		pop_frame(th);
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_PUSHFRAME:
+		push_frame(th);
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_POW:
+		// Note: Power function is undefined for negative exponents
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
-					
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n + args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n + args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = args[0].d + args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.d = args[0].d + args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_AND:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_REGISTER:
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].b && args[1].b;
-					break;
-					
-				case SO_CONSTANT:
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].b && args[1].b;
-					break;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
 				
-				default:
-					break;
-			}
-			break;
-			
-		case I_BITWISE:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case FORMAT3_SUBOP(SO_REGISTER, SO_AND):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n & args[1].n;
-					break;
-					
-				case FORMAT3_SUBOP(SO_REGISTER, SO_NOT):
-					
-					result.n = ~(args[0].n);
-					break;
+				result.n = pow_num(args[0].n, args[1].n);
 				
-				case FORMAT3_SUBOP(SO_REGISTER, SO_OR):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n | args[1].n;
-					break;
-					
-				case FORMAT3_SUBOP(SO_REGISTER, SO_XOR):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n ^ args[1].n;
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_BRANCH:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			if (args[0].b){
-				pc_next += sizeof(Data);
-			}else{
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
 				args[1] = access_constant(pc_next, th);
-				pc_next = args[1].addr;
-			}
-			break;
-			
-		case I_DECR:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			result.n = args[0].n - 1;
-			
-			break;
-			
-		case I_DIV:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = pow_num(args[0].n, args[1].n);
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n / args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n / args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n / args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = args[0].d / args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.d = args[0].d / args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = args[0].d / args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_EQ:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].n == args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].n == args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].d == args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].d == args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_F_CALL:
-			
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-					
-				case SO_PUSHFIRST:
-					push_frame(th);
-					// fall into next case
-				case SO_DIRECT:
-					pc_next = load_Function(args[0].f, th);
-					break;
-					
-				default:
-					break;
-			}
-			
-			break;
-			
-		case I_F_CREATE:
-			switch(subop){
-				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_RELATIVE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.f = create_Function(th->pc + args[0].addr, 0);
-					
-					break;
-					
-				case FORMAT4_SUBOP(SO_NOCLOSURE, SO_ABSOLUTE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					result.f = create_Function(args[0].addr, 0);
-					
-					break;
-					
-				case FORMAT4_SUBOP(SO_CLOSURE, SO_RELATIVE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1].b = read_byte(pc_next, th);
-					pc_next += 1;
-					
-					result.f = create_Function(th->pc + args[0].addr, (int) args[1].b);
-					
-					for(int i = 0; i < args[1].b; i++){
-						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
-						pc_next += 1;
-					}
-					
-					break;
-					
-				case FORMAT4_SUBOP(SO_CLOSURE, SO_ABSOLUTE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					args[1].b = read_byte(pc_next, th);
-					pc_next += 1;
-					
-					result.f = create_Function(args[0].addr, (int) args[1].b);
-					
-					
-					for (int i = 0; i < args[1].b; i++){
-						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
-						pc_next += 1;
-					}
-					
-					break;
-					
-				case SO_CLONE_F:
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					args[1].b = read_byte(pc_next, th);
-					pc_next += 1;
-					
-					result.f = copy_Function(args[0].f);
-					
-					for (int i = 0; i < args[1].b; i++){
-						enclose_data_Function(result.f, access_register(pc_next, th), read_byte(pc_next, th));
-						pc_next += 1;
-					}
-					
-					break;
-			}
-			break;
-			
-		case I_GT:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].n > args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].n > args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += sizeof(1);
-					
-					result.b = args[0].n > args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].d > args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].d > args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += sizeof(1);
-					
-					result.b = args[0].d > args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_HALT:
-			#ifdef DEBUG
-			printf("\tProgram halted.\n");
-			#endif
-			th->status = TH_STAT_FIN;
-			break;
-			
-		case I_INCR:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			result.n = args[0].n + 1;
-			break;
-			
-		case I_INPUT:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_NUMBER:
-					fscanf((FILE*) args[0].n, "%ld", &result.n);
-					while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
-					break;
-				case SO_RATIONAL:
-					fscanf((FILE*) args[0].n, "%lf", &result.d);
-					while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
-					break;
-				case SO_STRING:
-					result.s = read_into_string((FILE*) args[0].n);
-					break;
-				case SO_BOOLEAN:
-					result.b = read_into_bool((FILE*) args[0].n);
-					break;
-				default:
-					break;
-			}
-			break;
-			
-		case I_JUMP:
-		
-			switch(subop){
-				case FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE):
-					#ifdef DEBUG
-					printf("Constant jump subop\n");
-					#endif
-					
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					pc_next = args[0].addr;
-					break;
-					
-				case FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					pc_next += args[0].addr;
-					break;
-					
-				case FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE):
-					#ifdef DEBUG
-					printf("Register jump subop\n");
-					#endif
 				
+				result.n = pow_num(args[0].n, args[1].n);
 				
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					pc_next = args[0].addr;
-					break;
-					
-				case FORMAT3_SUBOP(SO_REGISTER, SO_RELATIVE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					pc_next += args[0].addr;
-					break;
+				break;
 				
-				default:
-					break;
-			}
-			break;
-			
-		case I_LSH:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n << args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n << args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n << args[1].n;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_LT:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].n < args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].n < args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += sizeof(1);
-					
-					result.b = args[0].n < args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].d < args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].d < args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += sizeof(1);
-					
-					result.b = args[0].d < args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_M_ALLOC:
-			switch(subop){
-				case SO_REGISTER:
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.p = calloc(args[0].n, sizeof(Data));
-					break;
-				case SO_CONSTANT:
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					#ifdef DEBUG
-					printf("\tallocating array with length %ld\n", args[0].n);
-					#endif
-					
-					result.p = calloc(args[0].n, sizeof(Data));
-					break;
-				default:
-					break;
-			}
-			break;
-			
-		case I_M_FREE:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_OBJECT:
-					free(args[0].p);
-					break;
-					
-				case SO_STRING:
-					string_destroy(args[0].s);
-					break;
-					
-				case SO_THREAD:
-					teardown_Thread(args[0].t);
-					break;
-					
-				case SO_FUNCTION:
-					teardown_Function(args[0].f);
-					break;
-					
-				default:
-					break;
-			}
-			
-			break;
-			
-		case I_M_LOAD:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_REGISTER:
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result = ( (Data*) args[0].p )[ args[1].n ];
-					
-					break;
-					
-				case SO_CONSTANT:
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result = ( (Data*) args[0].p )[ args[1].n ];
-					
-					break;
-				
-				default:
-					break;
-			}
-			break;
-			
-		case I_M_STORE:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[2] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					( (Data*) args[0].p )[ args[2].n ] = args[1];
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[2] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					#ifdef DEBUG
-					printf("\tpreparing to store to %p with offset %ld\n", args[0].p, args[2].n);
-					#endif
-					
-					( (Data*) args[0].p )[ args[2].n ] = args[1];
-					
-					#ifdef DEBUG
-					printf("\tstored\n");
-					#endif
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[2] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					( (Data*) args[0].p )[ (size_t) args[2].n ] = args[1];
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_CONSTANT, SO_NONE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[2] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					( (Data*) args[0].p )[ args[2].n ] = args[1];
-					
-					break;
-				
-				default:
-					break;
-			}
-			break;
-			
-		case I_MOD:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
+				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n % args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n % args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n % args[1].n;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_MOVE:
-			switch(subop){
-				case SO_REGISTER:
-					result = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					break;
-				case SO_CONSTANT:
-					result = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_MUL:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-					
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n * args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n * args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = args[0].d * args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.d = args[0].d * args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_NOT:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			result.b = !(args[0].b);
-			
-			break;
-			
-		case I_NOOP:
-			
-			#ifdef DEBUG
-			printf("\tNo-op, pc_next = %lu\n", pc_next);
-			#endif
-		
-			switch(subop){
-				#ifdef DEBUG
-				case SO_NUMBER:
-					printf("\t\tnumber subop\n");
-					break;
-				case SO_HASHTABLE:
-					printf("\t\thashtable subop\n");
-					break;
-				#endif
-				default:
-					break;
-			}
-			
-			break;
-			
-		case I_OR:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_REGISTER:
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = args[0].b || args[1].b;
-					break;
-					
-				case SO_CONSTANT:
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = args[0].b || args[1].b;
-					break;
 				
-				default:
-					break;
-			}
-			break;
-			
-		case I_OUTPUT:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					fprintf((FILE*) args[0].n, "%ld", args[1].n);
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_RATIONAL):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					fprintf((FILE*) args[0].n, "%f", args[1].d);
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_OBJECT):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					fprintf((FILE*) args[0].n, "obj<%p>", args[1].p);
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_STRING):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					string_print(args[1].s, (FILE*) args[0].n);
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_THREAD):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					fprintf((FILE*) args[0].n, "thr<%p>", args[1].t);
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					fprintf((FILE*) args[0].n, "fun<%p>{%d enclosed}", args[1].f, args[1].f->n_enclosed);
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_BOOLEAN):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					if (args[1].b){
-						fprintf((FILE*) args[0].n, "True");
-					}else{
-						fprintf((FILE*) args[0].n, "False");
-					}
-					break;
-				case FORMAT2_SUBOP(SO_REGISTER, SO_HASHTABLE):
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					fprintf((FILE*) args[0].n, "htb<%p>", args[1].h);
-					break;
-					
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_NUMBER):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "%ld", args[1].n);
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_RATIONAL):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "%f", args[1].d);
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_OBJECT):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "obj<%p>", args[1].p);
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_STRING):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "%.*s", 8, args[1].bytes);
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_THREAD):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "thr<%p>", args[1].t);
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_FUNCTION):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "fun<%lx>", args[1].addr);
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_BOOLEAN):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					if (args[1].b){
-						fprintf((FILE*) args[0].n, "True");
-					}else{
-						fprintf((FILE*) args[0].n, "False");
-					}
-					break;
-				case FORMAT2_SUBOP(SO_CONSTANT, SO_HASHTABLE):
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					fprintf((FILE*) args[0].n, "htb<%p>", args[1].h);
-					break;
+				result.d = pow_rat(args[0].d, args[1].d);
 				
-				default:
-					break;
-			}
-			
-			#ifdef DEBUG
-			printf("\n\tprint accomplished\n");
-			#endif
-			break;
-			
-		case I_POPFRAME:
-			pop_frame(th);
-			break;
-			
-		case I_PUSHFRAME:
-			push_frame(th);
-			break;
-			
-		case I_POW:
-			// Note: Power function is undefined for negative exponents
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-				pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = pow_num(args[0].n, args[1].n);
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = pow_num(args[0].n, args[1].n);
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = pow_num(args[0].n, args[1].n);
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = pow_rat(args[0].d, args[1].d);
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.d = pow_rat(args[0].d, args[1].d);
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = pow_rat(args[0].d, args[1].d);
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_RSH:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-				pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n >> args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n >> args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n >> args[1].n;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_SUB:
-			switch(subop){
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-				pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n - args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.n = args[0].n - args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.n = args[0].n - args[1].n;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = args[0].d - args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.d = args[0].d - args[1].d;
-					
-					break;
-					
-				case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.d = args[0].d - args[1].d;
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_TH_NEW:
-			switch(subop){
-				case SO_REGISTER:
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.t = fork_Thread(th, args[0].addr);
-					break;
-					
-				case SO_CONSTANT:
-					args[0] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.t = fork_Thread(th, args[0].addr);
-					break;
-					
-				case SO_FUNCTION:
-					args[0] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.t = create_child_Thread(th, args[0].f->addr);
-					load_Function(args[0].f, result.t);
-					start_Thread(result.t);
-					
-					break;
-					
-				default:
-					break;
-			}
-			break;
-			
-		case I_TH_JOIN:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			if(pthread_join(args[0].t->tid, NULL)){
-				perror("Error: Unable to join thread:");
-			}
-			
-			break;
-			
-		case I_TH_KILL:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			args[0].t->status = TH_STAT_KILLED;
-			
-			if (pthread_join(args[0].t->tid, NULL)){
-				perror("Error: Unable to join thread\n");
-			}
-			
-			break;
-			
-		case I_XOR:
-			args[0] = *access_register(pc_next, th);
-			pc_next += 1;
-			
-			switch(subop){
-				case SO_REGISTER:
-					args[1] = *access_register(pc_next, th);
-					pc_next += 1;
-					
-					result.b = (args[0].b && !args[1].b) || (!args[0].b && args[1].b);
-					break;
-					
-				case SO_CONSTANT:
-					args[1] = access_constant(pc_next, th);
-					pc_next += sizeof(Data);
-					
-					result.b = (args[0].b && !args[1].b) || (!args[0].b && args[1].b);
-					break;
+				break;
 				
-				default:
-					break;
-			}
-			break;
-			
-		default:
-			printf("Rivr Error: Unknown opcode\n");
-			#ifdef DEBUG
-			printf("\tInvalid opcode %x\t", opcode);
-			#endif
-		
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.d = pow_rat(args[0].d, args[1].d);
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = pow_rat(args[0].d, args[1].d);
+				
+				break;
+				
+			default:
+				break;
 		}
 		
-		if (HAS_RETURN(opcode)){
-			#ifdef DEBUG
-			printf("\tWriting result of <%x> to register\n", opcode);
-			#endif
-			*access_register(pc_next, th) = result;
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_RSH:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n >> args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n >> args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n >> args[1].n;
+				
+				break;
+				
+			default:
+				break;
 		}
 		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
 		
-		th->pc = pc_next;
-	}
+	L_SUB:
+		switch(subop){
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+			pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n - args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.n = args[0].n - args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.n = args[0].n - args[1].n;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = args[0].d - args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.d = args[0].d - args[1].d;
+				
+				break;
+				
+			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.d = args[0].d - args[1].d;
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_TH_NEW:
+		switch(subop){
+			case SO_REGISTER:
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.t = fork_Thread(th, args[0].addr);
+				break;
+				
+			case SO_CONSTANT:
+				args[0] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.t = fork_Thread(th, args[0].addr);
+				break;
+				
+			case SO_FUNCTION:
+				args[0] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.t = create_child_Thread(th, args[0].f->addr);
+				load_Function(args[0].f, result.t);
+				start_Thread(result.t);
+				
+				break;
+				
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_TH_JOIN:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		if(pthread_join(args[0].t->tid, NULL)){
+			perror("Error: Unable to join thread:");
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_TH_KILL:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		args[0].t->status = TH_STAT_KILLED;
+		
+		if (pthread_join(args[0].t->tid, NULL)){
+			perror("Error: Unable to join thread\n");
+		}
+		
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		
+	L_XOR:
+		args[0] = *access_register(pc_next, th);
+		pc_next += 1;
+		
+		switch(subop){
+			case SO_REGISTER:
+				args[1] = *access_register(pc_next, th);
+				pc_next += 1;
+				
+				result.b = (args[0].b && !args[1].b) || (!args[0].b && args[1].b);
+				break;
+				
+			case SO_CONSTANT:
+				args[1] = access_constant(pc_next, th);
+				pc_next += sizeof(Data);
+				
+				result.b = (args[0].b && !args[1].b) || (!args[0].b && args[1].b);
+				break;
+			
+			default:
+				break;
+		}
+		
+		WRITE_OP_RESULT(pc_next, th, result);
+		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+	
+	L_END_OF_PROGRAM:
 	
 	#ifdef DEBUG
 	printf("Thread exiting\n");
