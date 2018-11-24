@@ -25,8 +25,9 @@ int write_pow(byte* prog);
 int write_branch(byte* prog);
 int write_threading(byte* prog);
 int write_functions(byte* prog);
+int write_fibonacci(byte* prog);
 
-int (*progf)(byte*) = write_functions;
+int (*progf)(byte*) = write_fibonacci;
 
 
 int main(int argc, char** argv){
@@ -767,6 +768,201 @@ int write_functions(byte* prog){
 	
 	
 	record_pc(prog, ret_label_loc, &ret_label_ref, 1);
+	
+	return pc;
+}
+
+int write_fibonacci(byte* prog){
+	int pc = 0;
+	
+	Operation num_input_op = encode_operation(I_INPUT, SO_NUMBER);
+	Operation lt_op = encode_operation(I_LT, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE));
+	Operation gt_op = encode_operation(I_LT, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation eq_op = encode_operation(I_EQ, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation or_op = encode_operation(I_EQ, FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation add_op = encode_operation(I_ADD, FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation branch_op = encode_operation(I_BRANCH, SO_NONE);
+	Operation copy_op = encode_operation(I_MOVE, SO_REGISTER);
+	Operation alloc_op = encode_operation(I_M_ALLOC, SO_REGISTER);
+	Operation store_op = encode_operation(I_M_STORE, FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE));
+	Operation decr_op = encode_operation(I_DECR, SO_NONE);
+	Operation const_move_op = encode_operation(I_MOVE, SO_CONSTANT);
+	Operation load_op = encode_operation(I_M_LOAD, SO_REGISTER);
+	Operation incr_op = encode_operation(I_INCR, SO_NONE);
+	Operation jump_op = encode_operation(I_JUMP, FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE));
+	Operation rat_output_op = encode_operation(I_OUTPUT, FORMAT2_SUBOP(SO_REGISTER, SO_RATIONAL));
+	Operation halt_op = encode_operation(I_HALT, SO_NONE);
+	
+	Data two;
+	two.n = 2;
+	
+	// N = stdin.read(int)
+	// INPUT(NUMBER) $!3 > $0
+	pc = write_opcode(prog, pc, num_input_op);
+	pc = write_register(prog, pc, 3, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	
+	// a = N < 2
+	// LT $0 2 > $1
+	pc = write_opcode(prog, pc, lt_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_constant(prog, pc, two);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// if a (if N > 1) goto FIB_ARRAY_ALLOC
+	// BRANCH $1 FIB_ARRAY_ALLOC
+	pc = write_opcode(prog, pc, branch_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	int label_fib_array_alloc_ref = pc;
+	pc += sizeof(Data);
+	
+	// ret = 1.0
+	// MOVE $!6 > $32
+	pc = write_opcode(prog, pc, copy_op);
+	pc = write_register(prog, pc, 6, REG_SPEC);
+	pc = write_register(prog, pc, 32, REG_VAR);
+	
+	// JUMP :RETURN
+	pc = write_opcode(prog, pc, jump_op);
+	int label_ret_ref = pc;
+	pc += sizeof(Data);
+	
+	// :FIB_ARRAY_ALLOC
+	int label_fib_array_alloc_loc = pc;
+	
+	// INCR $0 > $1
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// array = [N]
+	// M_ALLOC $1 > $1
+	pc = write_opcode(prog, pc, alloc_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	
+	// M_STORE $1 $!6 $!0
+	// array[0] = 1.0
+	pc = write_opcode(prog, pc, store_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 6, REG_SPEC);
+	pc = write_register(prog, pc, 0, REG_SPEC);
+	
+	// M_STORE $1 $!6 $!1
+	// array[1] = 1.0
+	pc = write_opcode(prog, pc, store_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 6, REG_SPEC);
+	pc = write_register(prog, pc, 1, REG_SPEC);
+	
+	// i = 2
+	// MOVE 2 > $2
+	pc = write_opcode(prog, pc, const_move_op);
+	pc = write_constant(prog, pc, two);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// do
+	// :FIB_LOOP
+	int label_fib_loop_loc = pc;
+	
+	// x = i-1
+	// DECR $2 > $3
+	pc = write_opcode(prog, pc, decr_op);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	
+	// y = x-1
+	// DECR $3 > $4
+	pc = write_opcode(prog, pc, decr_op);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	pc = write_register(prog, pc, 4, REG_VAR);
+	
+	// x = array[x]
+	// M_LOAD $1 $3 > $3
+	pc = write_opcode(prog, pc, load_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	
+	// y = array[y]
+	// M_LOAD $1 $4 > $4
+	pc = write_opcode(prog, pc, load_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 4, REG_VAR);
+	pc = write_register(prog, pc, 4, REG_VAR);
+	
+	// x = x + y
+	// ADD $3 $4 > $3
+	pc = write_opcode(prog, pc, add_op);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	pc = write_register(prog, pc, 4, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	
+	// array[i] = x
+	// M_STORE $1 $3 $2
+	pc = write_opcode(prog, pc, store_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// i++
+	// INCR $2 > $2
+	pc = write_opcode(prog, pc, incr_op);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// while i < N
+	// EQ $2 $0 > $3
+	pc = write_opcode(prog, pc, eq_op);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	
+	// GT $2 $0 > $4
+	pc = write_opcode(prog, pc, gt_op);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	pc = write_register(prog, pc, 0, REG_VAR);
+	pc = write_register(prog, pc, 4, REG_VAR);
+	
+	// OR $3 $4 > $3
+	pc = write_opcode(prog, pc, or_op);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	pc = write_register(prog, pc, 4, REG_VAR);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	
+	// BRANCH $3 FIB_LOOP
+	pc = write_opcode(prog, pc, branch_op);
+	pc = write_register(prog, pc, 3, REG_VAR);
+	int label_fib_loop_ref = pc;
+	pc += sizeof(Data);
+	
+	// DECR $2 > $2
+	pc = write_opcode(prog, pc, decr_op);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	
+	// ret = array[i-1]
+	// M_LOAD $1 $2 > $32
+	pc = write_opcode(prog, pc, load_op);
+	pc = write_register(prog, pc, 1, REG_VAR);
+	pc = write_register(prog, pc, 2, REG_VAR);
+	pc = write_register(prog, pc, 32, REG_VAR);
+	
+	// :RET
+	int label_ret_loc = pc;
+	
+	// print ret
+	// OUTPUT $!2 $32
+	pc = write_opcode(prog, pc, rat_output_op);
+	pc = write_register(prog, pc, 2, REG_SPEC);
+	pc = write_register(prog, pc, 32, REG_VAR);
+	
+	// HALT
+	pc = write_opcode(prog, pc, halt_op);
+	
+	record_pc(prog, label_ret_loc, &label_ret_ref, 1);
+	record_pc(prog, label_fib_array_alloc_loc, &label_fib_array_alloc_ref, 1);
+	record_pc(prog, label_fib_loop_loc, &label_fib_loop_ref, 1);
 	
 	return pc;
 }
