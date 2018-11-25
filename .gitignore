@@ -1,4 +1,10 @@
 *.b
 *.exe
 *.stackdump
+*.out
 obj/*
+tests/benchmarking/*.class
+tests/benchmarking/*.py
+tests/benchmarking/*.c
+tests/benchmarking/rivr_profile.txt
+tests/benchmarking/fib_in.txt
