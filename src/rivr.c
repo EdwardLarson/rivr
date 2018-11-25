@@ -16,7 +16,7 @@ Rivr_Command parse_command(char* arg);
 int rivr_run(char** argv, int argi, int argc);
 
 int main(int argc, char** argv){
-	//printf("Rivr version %d.%d.%d\n", RIVR_VERSION_MAJOR, RIVR_VERSION_MINOR, RIVR_VERSION_PATCH);
+	printf("Rivr version %d.%d.%d\n", RIVR_VERSION_MAJOR, RIVR_VERSION_MINOR, RIVR_VERSION_PATCH);
 	
 	int argi = 1;
 	Rivr_Command command;

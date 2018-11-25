@@ -96,7 +96,7 @@ void enclose_data_Function(Function* f, Data* data, byte reg){
 	f->n_enclosed++;
 }
 
-PCType load_Function(const Function* f, Thread* th){
+PCType load_Function(const Function* f, union Register_Cache_* rc){
 	
 	byte reg_address;
 	Data reg_value;
@@ -105,7 +105,7 @@ PCType load_Function(const Function* f, Thread* th){
 		reg_address = f->registers[i];
 		reg_value = f->local_data[i];
 		
-		th->rf->register_cache.all_registers[reg_address] = reg_value;
+		rc->all_registers[reg_address] = reg_value;
 		// TO-DO: argument values stored in cache vs argument values stored in closure
 	}
 	

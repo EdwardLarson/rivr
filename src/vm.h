@@ -59,22 +59,31 @@ typedef union Data_
 // data is stored in registers:
 
 typedef struct Register_Frame_{
+	// stored in frame:
 	// 64 variable registers
 	// 32 argument read-only registers
-	// 32 return read-only registers
-	// from these 3 groups there are 128 registers to a frame
+	// 32 return write-only registers
+	// not stored because they don't need to be:
+	// 32 argument write-only registers (discarded on pop, copied to next frame on push)
+	// 32 return read-only registers (discarded on pop, become stale and may be overwritten on push)
+	// 32 global registers (do not change on push/pop)
+	// 32 special registers (do not change on push/pop)
+	
+	// 128 registers to a frame
 	// (therefore each frame is just over 1 kb of memory, taking into account the two pointers and extra byte)
 
 	Data v_registers[64];
 	Data a_read_registers[32];
-	Data r_read_registers[32];
 	Data r_write_registers[32];
 	
 	struct Register_Frame_* nxt_frame;
 	struct Register_Frame_* prv_frame;
 } Register_Frame;
 
-typedef union{
+Register_Frame* alloc_frame(Register_Frame* prv);
+void dealloc_frames(Register_Frame* init_frame);
+
+typedef union Register_Cache_{
 	Data all_registers[256];
 		
 	struct{
@@ -89,6 +98,8 @@ typedef union{
 	};
 } Register_Cache;
 
+void init_Register_Cache(Register_Cache* rc, Register_Frame* reference_frame);
+
 // registers are held in a container of register files
 // along with an accompanying set of global and special registers
 
@@ -97,18 +108,11 @@ typedef struct Register_File_ {
 	Register_Frame* curr_frame;
 	Register_Frame* next_frame;
 	
-	Register_Cache register_cache;
-	
 	int references;
 } Register_File;
 
 int init_Register_File(Register_File* rf);
 void init_spec_registers(Data* registers);
-
-Register_Frame* next_free_frame(Register_File* rf);
-
-Register_Frame* alloc_frame(Register_File* rf, Register_Frame* prv);
-void dealloc_frames(Register_Frame* init_frame, Register_File* rf);
 
 // multiple threads may run concurrently
 // threads share a register file, but have separate framestacks
@@ -131,12 +135,9 @@ Thread* create_child_Thread(const Thread* parent, PCType pc_start);
 void start_Thread(Thread* th);
 void teardown_Thread(Thread* th);
 
-void push_frame(Thread* th);
-void pop_frame(Thread* th);
+void push_frame(Thread* th, Register_Cache* local_rc);
+void pop_frame(Thread* th, Register_Cache* local_rc);
 
-Data* access_register(PCType pc, const Thread* th);
-
-Data access_constant(PCType pc, const Thread* th);
 byte read_byte(PCType pc, const Thread* th);
 
 // function which performs actual execution of code

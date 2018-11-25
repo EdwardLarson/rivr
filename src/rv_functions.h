@@ -19,4 +19,4 @@ Function* copy_Function(const Function* f);
 void teardown_Function(Function* f);
 
 void enclose_data_Function(Function* f, union Data_* data, byte reg);
-PCType load_Function(const Function* f, struct Thread_* th);
+PCType load_Function(const Function* f, union Register_Cache_* rc);

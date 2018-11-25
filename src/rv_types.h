@@ -9,3 +9,4 @@ struct Thread_;
 struct Function_;
 struct Rivr_String_;
 union Data_;
+union Register_Cache_;
