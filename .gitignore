@@ -1,0 +1,4 @@
+*.b
+*.exe
+*.stackdump
+obj/*
