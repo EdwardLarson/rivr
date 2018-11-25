@@ -28,23 +28,12 @@
 
 
 
-// opcodes are 6 bits (64 possible) in length
-// subop is 4 bits (32 possible) in length
-// for 10 bits used
-// therefore entire operations will be 16 bits (2 bytes) in length
-// 6 bits are left over
-// these may in the future be used to expand the number of opcodes or subfunctions
-
 typedef struct Operation_{
-	byte bytes[2];
+	byte opcode; // only 6 bits planned to be used
+	byte subop; // only 4 bits planned to be used
 } Operation;
 
 Operation read_op(const byte* bytes, PCType pc);
-
-
-byte get_opcode(Operation op);
-
-byte get_subop(Operation op);
 
 Operation encode_operation(byte opcode, byte subop);
 

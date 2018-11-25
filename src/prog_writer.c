@@ -1090,8 +1090,8 @@ int write_opcode(byte* prog, int pc, Operation op){
 	
 	if (!prog) return pc + 2;
 	
-	prog[pc] = op.bytes[0];
-	prog[pc + 1] = op.bytes[1];
+	prog[pc] = op.opcode;
+	prog[pc + 1] = op.subop;
 	
 	return pc + 2;
 }

@@ -9,30 +9,26 @@
 	do { *access_register(PC_Next, Thread) = Result; PC_Next += 1; } while(0)
 
 #ifdef DEBUG
-#define LOAD_NEXT_OPCODE(PC_Next, Thread, Op, Opcode, Subop) \
+#define LOAD_NEXT_OPCODE(PC_Next, Thread, Op) \
 	do { if ((Thread->status <= 0) || (PC_Next >= Thread->prog_len)) goto L_END_OF_PROGRAM; \
 			Thread->pc = PC_Next; \
-			Op = read_op(Thread->prog, th->pc); \
-			Opcode = get_opcode(Op); \
-			Subop = get_subop(Op); \
+			memcpy(&Op, &Thread->prog[PC_Next], 2); \
 			PC_Next += 2; \
 			printf("\tpc[%lu]-", Thread->pc); \
-			printf("Opcode[%x]-Subop[%x]-", Opcode, Subop); \
+			printf("Opcode[%x]-Subop[%x]-", Op.opcode, Op.subop); \
 			printf("Status[%d]\n", Thread->status); \
 	} while(0)
 #else
-#define LOAD_NEXT_OPCODE(PC_Next, Thread, Op, Opcode, Subop) \
+#define LOAD_NEXT_OPCODE(PC_Next, Thread, Op) \
 do { if ((Thread->status <= 0) || (PC_Next >= Thread->prog_len)) goto L_END_OF_PROGRAM; \
 		Thread->pc = PC_Next; \
-		Op = read_op(Thread->prog, th->pc); \
-		Opcode = get_opcode(Op); \
-		Subop = get_subop(Op); \
+		memcpy(&Op, &Thread->prog[PC_Next], 2); \
 		PC_Next += 2; \
 } while(0)
 #endif
 		
-#define JUMP_TO_NEXT_INSTRUCTION(ITable, Opcode) \
-	goto *(ITable[Opcode])
+#define JUMP_TO_NEXT_INSTRUCTION(ITable, Op) \
+	goto *(ITable[Op.opcode])
 
 #ifdef VM_ONLY
 int main(int argc, char** argv){
@@ -56,27 +52,15 @@ int main(int argc, char** argv){
 Operation read_op(const byte* bytes, PCType pc){
 	Operation op;
 	
-	op.bytes[0] = bytes[pc];
-	op.bytes[1] = bytes[pc + 1];
+	memcpy(&op, &bytes[pc], 2);
 	
 	return op;
 }
 
-byte get_opcode(Operation op){
-	// first 6 bits (bits 0 to 6)
-	return (op.bytes[0] & 0xFC) >> 2;
-}
-
-byte get_subop(Operation op){
-	// bits 6 to 9
-	return ((op.bytes[0] & 0x03) << 2) | ((op.bytes[1] & 0xC0) >> 6);
-}
-
 Operation encode_operation(byte opcode, byte subop){
 	Operation op;
-	op.bytes[0] = 0xFC & (opcode << 2);
-	op.bytes[0] |= 0x03 & (subop >> 2);
-	op.bytes[1] = 0xC0 & (subop << 6);
+	op.opcode = opcode;
+	op.subop = subop;
 	
 	return op;
 }
@@ -371,8 +355,6 @@ inline byte read_byte(PCType pc, const Thread* th){
 void* run_thread(void* th_in){
 	Thread* th = (Thread*) th_in;
 	Operation op;
-	byte opcode;
-	byte subop;
 	PCType pc_next;
 	
 	Data args[4]; // temporary storage for up to 4 args
@@ -425,29 +407,11 @@ void* run_thread(void* th_in){
 	
 	pc_next = th->pc;
 	
-	LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-	goto *(instruction_table[opcode]);
+	LOAD_NEXT_OPCODE(pc_next, th, op);
+	JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 	
-	#if 0
-	
-	pc_next = th->pc;
-	
-	op = read_op(th->prog, th->pc);
-	opcode = get_opcode(op);
-	subop = get_subop(op);
-	
-	#ifdef DEBUG
-	printf("\tpc[%lu]-", th->pc);
-	printf("Opcode[%x]-Subop[%x]-", opcode, subop);
-	printf("Status[%d]\n", th->status);
-	#endif
-	
-	pc_next += 2;
-	
-	#endif
-		
 	L_ABS:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_NONE, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -475,17 +439,17 @@ void* run_thread(void* th_in){
 			default:
 				break;
 		}
-		
+	
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 		
 	L_ADD:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 				
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -523,14 +487,14 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_AND:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -550,14 +514,14 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_BITWISE:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case FORMAT3_SUBOP(SO_REGISTER, SO_AND):
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -589,8 +553,8 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_BRANCH:
 		args[0] = *access_register(pc_next, th);
@@ -602,8 +566,8 @@ void* run_thread(void* th_in){
 			pc_next = args[1].addr;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		goto *(instruction_table[opcode]);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_DECR:
 		args[0] = *access_register(pc_next, th);
@@ -612,11 +576,11 @@ void* run_thread(void* th_in){
 		result.n = args[0].n - 1;
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_DIV:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -682,11 +646,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_EQ:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -732,15 +696,15 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_F_CALL:
 		
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 				
 			case SO_PUSHFIRST:
 				push_frame(th);
@@ -753,11 +717,11 @@ void* run_thread(void* th_in){
 				break;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_F_CREATE:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT4_SUBOP(SO_NOCLOSURE, SO_RELATIVE):
 				args[0] = access_constant(pc_next, th);
 				pc_next += sizeof(Data);
@@ -823,11 +787,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_GT:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -893,8 +857,8 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_HALT:
 		#ifdef DEBUG
@@ -911,14 +875,14 @@ void* run_thread(void* th_in){
 		result.n = args[0].n + 1;
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_INPUT:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case SO_NUMBER:
 				fscanf((FILE*) args[0].n, "%ld", &result.n);
 				while (getc((FILE*) args[0].n) != '\n'); // flush input buffer
@@ -938,12 +902,12 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_JUMP:
 	
-		switch(subop){
+		switch(op.subop){
 			case FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE):
 				#ifdef DEBUG
 				printf("Constant jump subop\n");
@@ -981,11 +945,11 @@ void* run_thread(void* th_in){
 				break;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_LSH:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -1021,11 +985,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_LT:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1091,11 +1055,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_M_ALLOC:
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1117,14 +1081,14 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_M_FREE:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case SO_OBJECT:
 				free(args[0].p);
 				break;
@@ -1145,14 +1109,14 @@ void* run_thread(void* th_in){
 				break;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_M_LOAD:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1174,14 +1138,14 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_M_STORE:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1234,11 +1198,11 @@ void* run_thread(void* th_in){
 				break;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_MOD:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -1274,11 +1238,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_MOVE:
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				result = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1295,14 +1259,14 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_MUL:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 				
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1340,8 +1304,8 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_NOT:
 		args[0] = *access_register(pc_next, th);
@@ -1350,8 +1314,8 @@ void* run_thread(void* th_in){
 		result.b = !(args[0].b);
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_NOOP:
 		
@@ -1359,7 +1323,7 @@ void* run_thread(void* th_in){
 		printf("\tNo-op, pc_next = %lu\n", pc_next);
 		#endif
 	
-		switch(subop){
+		switch(op.subop){
 			#ifdef DEBUG
 			case SO_NUMBER:
 				printf("\t\tnumber subop\n");
@@ -1372,14 +1336,14 @@ void* run_thread(void* th_in){
 				break;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_OR:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1399,14 +1363,14 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_OUTPUT:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER):
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1505,24 +1469,24 @@ void* run_thread(void* th_in){
 		printf("\n\tprint accomplished\n");
 		#endif
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_POPFRAME:
 		pop_frame(th);
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_PUSHFRAME:
 		push_frame(th);
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_POW:
 		// Note: Power function is undefined for negative exponents
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -1588,11 +1552,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_RSH:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -1628,11 +1592,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_SUB:
-		switch(subop){
+		switch(op.subop){
 			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
 				args[0] = *access_register(pc_next, th);
 			pc_next += 1;
@@ -1698,11 +1662,11 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_TH_NEW:
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				args[0] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1732,8 +1696,8 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_TH_JOIN:
 		args[0] = *access_register(pc_next, th);
@@ -1743,8 +1707,8 @@ void* run_thread(void* th_in){
 			perror("Error: Unable to join thread:");
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_TH_KILL:
 		args[0] = *access_register(pc_next, th);
@@ -1756,14 +1720,14 @@ void* run_thread(void* th_in){
 			perror("Error: Unable to join thread\n");
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 		
 	L_XOR:
 		args[0] = *access_register(pc_next, th);
 		pc_next += 1;
 		
-		switch(subop){
+		switch(op.subop){
 			case SO_REGISTER:
 				args[1] = *access_register(pc_next, th);
 				pc_next += 1;
@@ -1783,8 +1747,8 @@ void* run_thread(void* th_in){
 		}
 		
 		WRITE_OP_RESULT(pc_next, th, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op, opcode, subop);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, opcode);
+		LOAD_NEXT_OPCODE(pc_next, th, op);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
 	
 	L_END_OF_PROGRAM:
 	
