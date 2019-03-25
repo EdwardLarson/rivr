@@ -1,0 +1,48 @@
+
+[ opcode ] [ subop ] [ args ] [ args ] [ args ] [ args ] [ args ] [ ret ]
+
+5 argument bytes
+Not enough to hold any constants
+Constants should just be listed afterward
+- in fact, subop will have a bit for each argument indicating register or constant
+- if register, the arg byte is just the arg number
+- if constant, the arg byte is the index of the constant Ic
+-- ConstArg = prog[pc_next + (Ic * 8)]
+
+Always load first 2 args into registers
+- instructions requiring more need to explicitly load those
+- most intructions only need 2 arguments, so this is probably the best balance between speed and verbosity
+
+[ Opcode ] [ Subop ] [ A ] [ B ] [ Option0 ] [ Option1 ] [ Option2 ] [ Ret ]
+
+
+Why not allow very limited SIMD? Instructions requiring 2 args and a return require 3 registers; we have 6
+
+if SISD:
+	Op(A, B) -> Ret
+	
+if SIMD:
+	Op(A, B) -> Ret
+	Op(Option0, Option1) -> Option2
+	
+For instructions requiring 1 argument and a return, we can triple up:
+	Op(A) -> Ret
+	Op(B) -> Option0
+	Op(Option1) -> Option2
+	
+For arg types: We only have 2 bits available in the subop now. This is sufficient for most cases: Most of the the instructions that have some dependency on type only have to choose between Number or Rational. I_OUTPUT is the only instruction which needs to switch between all numbers, and in this special case that can probably be stored in one of the args (I_OUTPUT only needs 2 args and has no return needed - although maybe it should, for status?)
+	
+
+
+Subop Bits:
+|Bit | 0                       | 1                   |
+|=====================================================
+| 0  | Type Bit0 Low           | Type Bit0 High      |
+| 1  | Type Bit1 Low           | Type Bit1 High      |
+| 2  | A is Register           | A is Constant       |
+| 3  | B is Register           | B is Constant       |
+| 4  | Option0 is Register     | Option0 is Constant |
+| 5  | Option1 is Register     | Option1 is Constant |
+| 6  | Option2 is Register     | Option2 is Constant |
+| 7  | SISD                    | SIMD                |
+

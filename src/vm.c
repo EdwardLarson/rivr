@@ -12,7 +12,7 @@
 			memcpy(&Op, &Thread->prog[PC_Next], 2); \
 			PC_Next += 2; \
 			printf("\tpc[%lu]-", Thread->pc); \
-			printf("Opcode[%x]-Subop[%x]-", Op.opcode, Op.subop); \
+			printf("Opcode[0x%x]-Subop[0x%x]-", Op.opcode, Op.subop); \
 			printf("Status[%d]\n", Thread->status); \
 	}
 #else
@@ -23,23 +23,68 @@
 		PC_Next += 2; \
 	}
 #endif
-		
-#define JUMP_TO_NEXT_INSTRUCTION(ITable, Op) \
-	goto *(ITable[Op.opcode]) 
+
+#ifdef DEBUG
+#define LOAD_NEXT_INSTRUCTION(PC_Next, Thread, Cache, Instr, Arg_Regs) \
+	{ if ((Thread->status <= 0) || (PC_Next + INSTR_SIZE >= Thread->prog_len)) goto L_END_OF_PROGRAM; \
+			Thread->pc = PC_Next; \
+			memcpy(&Instr.bytes, &Thread->prog[PC_Next], INSTR_SIZE); \
+			PC_Next += INSTR_SIZE; \
+			\
+			if(Instr.subop.arg1_const){  \
+				memcpy(&Arg_Regs[0], &Thread->prog[PC_Next], sizeof(Data)); \
+				PC_Next += sizeof(Data); \
+			}else{ \
+				memcpy(&Arg_Regs[0], &Cache.all_registers[ Instr.args[0] ], sizeof(Data)); \
+			}\
+			if(Instr.subop.arg2_const){  \
+				memcpy(&Arg_Regs[1], &Thread->prog[PC_Next], sizeof(Data)); \
+				PC_Next += sizeof(Data); \
+			}else{ \
+				memcpy(&Arg_Regs[1], &Cache.all_registers[ Instr.args[1] ], sizeof(Data)); \
+			}\
+			printf("\tpc[%lu]-", Thread->pc); \
+			printf("Opcode[0x%x]-Subop[0x%x]-", Instr.opcode, Instr.subop.full); \
+			printf("Status[%d]\n", Thread->status); \
+	}
+#else
+#define LOAD_NEXT_INSTRUCTION(PC_Next, Thread, Cache, Instr, Arg_Regs) \
+	{ if ((Thread->status <= 0) || (PC_Next + INSTR_SIZE >= Thread->prog_len)) goto L_END_OF_PROGRAM; \
+			Thread->pc = PC_Next; \
+			memcpy(&Instr.bytes, &Thread->prog[PC_Next], INSTR_SIZE); \
+			PC_Next += INSTR_SIZE; \
+			\
+			if(Instr.subop.arg1_const){  \
+				memcpy(&Arg_Regs[0], &Thread->prog[PC_Next], sizeof(Data)); \
+				PC_Next += sizeof(Data); \
+			}else{ \
+				memcpy(&Arg_Regs[0], &Cache.all_registers[ Instr.args[0] ], sizeof(Data)); \
+			}\
+			if(Instr.subop.arg2_const){  \
+				memcpy(&Arg_Regs[1], &Thread->prog[PC_Next], sizeof(Data)); \
+				PC_Next += sizeof(Data); \
+			}else{ \
+				memcpy(&Arg_Regs[1], &Cache.all_registers[ Instr.args[1] ], sizeof(Data)); \
+			}\
+	}
+#endif
+	
+#define JUMP_TO_NEXT_INSTRUCTION(ITable, Instruction) \
+	goto *(ITable[Instruction.opcode]) 
 	
 #define REGISTER(Cache, Reg_Address) (Cache.all_registers[Reg_Address])
 
 #define READ_PROG_BYTE(Prog, PC_Next) \
-	Prog[PC_Next++]
+	Prog[(PC_Next)++]
 	
 #define READ_REGISTER_ARG(Arg_Regs, Arg_N, Prog, PC_Next) \
 	{ Arg_Regs[Arg_N] = Prog[PC_Next]; PC_Next += 1; }
 	
 #define READ_CONSTANT_ARG(Arg_Regs, Arg_N, Prog, PC_Next, Cache, Const_N) \
-	{ memcpy(&Cache.all_registers[Const_N], &Prog[PC_Next], sizeof(Data)); Arg_Regs[Arg_N] = Const_N; PC_Next += sizeof(Data); }
+	{ memcpy(&Cache.s_registers[ Const_N ], &Prog[PC_Next], sizeof(Data)); Arg_Regs[Arg_N] = Const_N; PC_Next += sizeof(Data); }
 
-#define WRITE_OP_RESULT(Prog, PC_Next, Cache, Result) \
-	{ Cache.all_registers[Prog[PC_Next]] = Result; PC_Next += 1; }
+#define WRITE_OP_RESULT(Instruction, Cache, Result) \
+	{ Cache.all_registers[Instruction.ret] = Result; }
 	
 // Last 4 registers of the Special registers are for holding constants
 #define CONST_REG_0 0xFC
@@ -81,6 +126,14 @@ Operation encode_operation(byte opcode, byte subop){
 	
 	return op;
 }
+
+# define LOAD_ARGUMENT(Instr, Iarg, ArgRegs, Cache, Bytes, PC_Next) \
+	if(Instr.subop.full & (0x1 << (2 + Iarg))){  \
+		memcpy(&ArgRegs[Iarg], &Bytes[PC_Next], sizeof(Data); \
+		PC_Next += sizeof(Data); \
+	}else{ \
+		memcpy(&ArgRegs[Iarg], &Cache.all_registers[Instr.args[Iarg]], sizeof(Data)); \
+	}
 
 
 int init_Register_File(Register_File* rf){
@@ -340,14 +393,14 @@ inline byte read_byte(PCType pc, const Thread* th){
 
 void* run_thread(void* th_in){
 	Thread* th = (Thread*) th_in;
-	Operation op;
 	PCType pc_next;
 	
 	Register_Cache rc;
 	init_Register_Cache(&rc, th->rf->curr_frame);
 	
-	byte arg_regs[8]; // store register values which are used as arguments
-	Data tmp;
+	Instruction instruction;
+	
+	Data iargs[5];
 	Data result;
 	
 	th->tid = pthread_self();
@@ -358,7 +411,10 @@ void* run_thread(void* th_in){
 		&&L_ADD,
 		&&L_AND,
 		&&L_BRANCH,
-		&&L_BITWISE,
+		&&L_BW_AND,
+		&&L_BW_NOT,
+		&&L_BW_OR,
+		&&L_BW_XOR,
 		&&L_DECR,
 		&&L_DIV,
 		&&L_EQ,
@@ -397,307 +453,190 @@ void* run_thread(void* th_in){
 	
 	pc_next = th->pc;
 	
-	LOAD_NEXT_OPCODE(pc_next, th, op);
-	JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+	LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+	JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 	
 	L_ABS:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_NONE, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				result.n = (REGISTER(rc, arg_regs[0]).n < 0) ? (-1 * REGISTER(rc, arg_regs[0]).n) : (REGISTER(rc, arg_regs[0]).n);
-				
+		
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.n = (iargs[0].n < 0) ? (-1 * iargs[0].n) : (iargs[0].n);
 				break;
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_NONE, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				result.n = (REGISTER(rc, arg_regs[0]).n < 0) ? (-1 * REGISTER(rc, arg_regs[0]).n) : (REGISTER(rc, arg_regs[0]).n);
 				
+			case SO_RATIONAL:
+				result.d = (iargs[0].n < 0) ? (-1 * iargs[0].d) : (iargs[0].d);
 				break;
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_NONE, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				result.d = (REGISTER(rc, arg_regs[0]).d < 0) ? (-1 * REGISTER(rc, arg_regs[0]).d) : (REGISTER(rc, arg_regs[0]).d);
 				
-				break;
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_NONE, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				result.d = (REGISTER(rc, arg_regs[0]).n < 0) ? (-1 * REGISTER(rc, arg_regs[0]).d) : (REGISTER(rc, arg_regs[0]).d);
-				
-				break;
 			default:
 				break;
+				
 		}
 	
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 		
 	L_ADD:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n + REGISTER(rc, arg_regs[1]).n;
-				
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.n = iargs[0].n + iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n + REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d + REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d + REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.d = iargs[0].d + iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_AND:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+	L_AND:	
+		result.b = iargs[0].b && iargs[1].b;
 		
-		switch(op.subop){
-			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).b && REGISTER(rc, arg_regs[1]).b;
-				break;
-				
-			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).b && REGISTER(rc, arg_regs[1]).b;
-				break;
-			
-			default:
-				break;
-		}
-		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
-		
-	L_BITWISE:
-		READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-		
-		switch(op.subop){
-			case FORMAT3_SUBOP(SO_REGISTER, SO_AND):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n & REGISTER(rc, arg_regs[1]).n;
-				break;
-				
-			case FORMAT3_SUBOP(SO_REGISTER, SO_NOT):
-				
-				result.n = ~(REGISTER(rc, arg_regs[0]).n);
-				break;
-			
-			case FORMAT3_SUBOP(SO_REGISTER, SO_OR):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n | REGISTER(rc, arg_regs[1]).n;
-				break;
-				
-			case FORMAT3_SUBOP(SO_REGISTER, SO_XOR):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n ^ REGISTER(rc, arg_regs[1]).n;
-				break;
-				
-			default:
-				break;
-		}
-		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_BRANCH:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-		
-		if (REGISTER(rc, arg_regs[0]).b){
+		if (iargs[0].b){
 			pc_next += sizeof(Data);
+			
 		}else{
-			READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-			pc_next = REGISTER(rc, arg_regs[1]).addr;
+			pc_next = iargs[1].addr;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
+		
+	L_BW_AND:
+	
+		result.n = iargs[0].n & iargs[1].n;
+		
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
+		
+	L_BW_NOT:
+	
+		result.n = ~(iargs[0].n);
+	
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
+		
+	L_BW_OR:
+	
+		result.n = iargs[0].n | iargs[1].n;
+	
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
+		
+	L_BW_XOR:
+	
+		result.n = iargs[0].n ^ iargs[1].n;
+		
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_DECR:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+		result.n = iargs[0].n - 1;
 		
-		result.n = REGISTER(rc, arg_regs[0]).n - 1;
-		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_DIV:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n / REGISTER(rc, arg_regs[1]).n;
-				
+	
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.n = iargs[0].n / iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n / REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n / REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d / REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d / REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d / REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.d = iargs[0].d / iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_EQ:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-		
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n == REGISTER(rc, arg_regs[1]).n;
-				
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.b = iargs[0].n == iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n == REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d == REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d == REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.b = iargs[0].d == iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_F_CALL:
+	L_F_CALL: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
 		
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		switch(op.subop){
+		switch(instruction.subop.full){
 				
 			case SO_PUSHFIRST:
 				push_frame(th, &rc);
 				// fall into next case
 			case SO_DIRECT:
-				pc_next = load_Function(REGISTER(rc, arg_regs[0]).f, &rc);
+				pc_next = load_Function(iargs[0].f, &rc);
 				break;
 				
 			default:
 				break;
 		}
+		*/
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_F_CREATE:
-		switch(op.subop){
+	L_F_CREATE: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		switch(instruction.subop.full){
 			case FORMAT4_SUBOP(SO_NOCLOSURE, SO_RELATIVE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 0, th->prog, pc_next, rc, CONST_REG_0);
 				
-				result.f = create_Function(th->pc + REGISTER(rc, arg_regs[0]).addr, 0);
+				result.f = create_Function(th->pc + iargs[0].addr, 0);
 				
 				break;
 				
 			case FORMAT4_SUBOP(SO_NOCLOSURE, SO_ABSOLUTE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 0, th->prog, pc_next, rc, CONST_REG_0);
 				
-				result.f = create_Function(REGISTER(rc, arg_regs[0]).addr, 0);
+				result.f = create_Function(iargs[0].addr, 0);
 				
 				break;
 				
 			case FORMAT4_SUBOP(SO_CLOSURE, SO_RELATIVE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 0, th->prog, pc_next, rc, CONST_REG_0);
 				
 				tmp.b = READ_PROG_BYTE(th->prog, pc_next);
 				
-				result.f = create_Function(th->pc + REGISTER(rc, arg_regs[0]).addr, (int)tmp.b);
+				result.f = create_Function(th->pc + iargs[0].addr, (int)tmp.b);
 				
 				for(int i = 0; i < tmp.b; i++){
 					enclose_data_Function(result.f, &REGISTER(rc, th->prog[pc_next]), READ_PROG_BYTE(th->prog, pc_next));
@@ -706,11 +645,11 @@ void* run_thread(void* th_in){
 				break;
 				
 			case FORMAT4_SUBOP(SO_CLOSURE, SO_ABSOLUTE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 0, th->prog, pc_next, rc, CONST_REG_0);
 				
 				tmp.b = READ_PROG_BYTE(th->prog, pc_next);
 				
-				result.f = create_Function(REGISTER(rc, arg_regs[0]).addr, (int) tmp.b);
+				result.f = create_Function(iargs[0].addr, (int) tmp.b);
 				
 				for (int i = 0; i < tmp.b; i++){
 					enclose_data_Function(result.f, &REGISTER(rc, th->prog[pc_next]), READ_PROG_BYTE(th->prog, pc_next));
@@ -719,11 +658,11 @@ void* run_thread(void* th_in){
 				break;
 				
 			case SO_CLONE_F:
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 				
 				tmp.b = READ_PROG_BYTE(th->prog, pc_next);
 				
-				result.f = copy_Function(REGISTER(rc, arg_regs[0]).f);
+				result.f = copy_Function(iargs[0].f);
 				
 				for (int i = 0; i < tmp.b; i++){
 					enclose_data_Function(result.f, &REGISTER(rc, th->prog[pc_next]), READ_PROG_BYTE(th->prog, pc_next));
@@ -731,74 +670,30 @@ void* run_thread(void* th_in){
 				
 				break;
 		}
+		*/
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_GT:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n > REGISTER(rc, arg_regs[1]).n;
-				
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.b = iargs[0].n > iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n > REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n > REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d > REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d > REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d > REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.b = iargs[0].d > iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_HALT:
 		#ifdef DEBUG
@@ -809,283 +704,191 @@ void* run_thread(void* th_in){
 		goto L_END_OF_PROGRAM;
 		
 	L_INCR:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+		result.n = iargs[0].n + 1;
 		
-		result.n = REGISTER(rc, arg_regs[0]).n + 1;
-		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_INPUT:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
 		
-		switch(op.subop){
+		switch(instruction.subop.arg_type){
 			case SO_NUMBER:
-				fscanf((FILE*) REGISTER(rc, arg_regs[0]).n, "%ld", &result.n);
-				while (getc((FILE*) REGISTER(rc, arg_regs[0]).n) != '\n'); // flush input buffer
+				fscanf((FILE*) iargs[0].n, "%ld", &result.n);
+				while (getc((FILE*) iargs[0].n) != '\n'); // flush input buffer
 				break;
 			case SO_RATIONAL:
-				fscanf((FILE*) REGISTER(rc, arg_regs[0]).n, "%lf", &result.d);
-				while (getc((FILE*) REGISTER(rc, arg_regs[0]).n) != '\n'); // flush input buffer
+				fscanf((FILE*) iargs[0].n, "%lf", &result.d);
+				while (getc((FILE*) iargs[0].n) != '\n'); // flush input buffer
 				break;
 			case SO_STRING:
-				result.s = read_into_string((FILE*) REGISTER(rc, arg_regs[0]).n);
+				result.s = read_into_string((FILE*) iargs[0].n);
 				break;
 			case SO_BOOLEAN:
-				result.b = read_into_bool((FILE*) REGISTER(rc, arg_regs[0]).n);
+				result.b = read_into_bool((FILE*) iargs[0].n);
 				break;
 			default:
 				break;
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_JUMP:
 	
-		switch(op.subop){
-			case FORMAT3_SUBOP(SO_CONSTANT, SO_ABSOLUTE):
-				#ifdef DEBUG
-				printf("Constant jump subop\n");
-				#endif
-				
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				pc_next = REGISTER(rc, arg_regs[0]).addr;
-				break;
-				
-			case FORMAT3_SUBOP(SO_CONSTANT, SO_RELATIVE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				pc_next += REGISTER(rc, arg_regs[0]).addr;
-				break;
-				
-			case FORMAT3_SUBOP(SO_REGISTER, SO_ABSOLUTE):
-				#ifdef DEBUG
-				printf("Register jump subop\n");
-				#endif
+		switch(instruction.subop.arg_type){
+			case SO_ABSOLUTE:
 			
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				pc_next = REGISTER(rc, arg_regs[0]).addr;
+				pc_next = iargs[0].addr;
 				break;
 				
-			case FORMAT3_SUBOP(SO_REGISTER, SO_RELATIVE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+			case SO_RELATIVE:
 				
-				pc_next += REGISTER(rc, arg_regs[0]).addr;
+				pc_next += iargs[0].addr;
 				break;
-			
+				
 			default:
 				break;
 		}
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_LSH:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n << REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n << REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n << REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			default:
-				break;
-		}
+	
+		result.n = iargs[0].n << iargs[1].n;
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_LT:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n < REGISTER(rc, arg_regs[1]).n;
-				
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.b = iargs[0].n < iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n < REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).n < REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d < REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d < REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).d < REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.b = iargs[0].d < iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_M_ALLOC:
-		switch(op.subop){
+	L_M_ALLOC: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		switch(instruction.subop.full){
 			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 				
-				result.p = calloc(REGISTER(rc, arg_regs[0]).n, sizeof(Data));
+				result.p = calloc(iargs[0].n, sizeof(Data));
 				break;
 			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 0, th->prog, pc_next, rc, CONST_REG_0);
 				
 				#ifdef DEBUG
-				printf("\tallocating array with length %ld\n", REGISTER(rc, arg_regs[0]).n);
+				printf("\tallocating array with length %ld\n", iargs[0].n);
 				#endif
 				
-				result.p = calloc(REGISTER(rc, arg_regs[0]).n, sizeof(Data));
+				result.p = calloc(iargs[0].n, sizeof(Data));
 				break;
 			default:
 				break;
 		}
+		*/
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_M_FREE:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+	L_M_FREE: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		switch(op.subop){
+		switch(instruction.subop.full){
 			case SO_OBJECT:
-				free(REGISTER(rc, arg_regs[0]).p);
+				free(iargs[0].p);
 				break;
 				
 			case SO_STRING:
-				string_destroy(REGISTER(rc, arg_regs[0]).s);
+				string_destroy(iargs[0].s);
 				break;
 				
 			case SO_THREAD:
-				teardown_Thread(REGISTER(rc, arg_regs[0]).t);
+				teardown_Thread(iargs[0].t);
 				break;
 				
 			case SO_FUNCTION:
-				teardown_Function(REGISTER(rc, arg_regs[0]).f);
+				teardown_Function(iargs[0].f);
 				break;
 				
 			default:
 				break;
 		}
+		*/
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_M_LOAD:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+	L_M_LOAD: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		switch(op.subop){
+		switch(instruction.subop.full){
 			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				result = ( (Data*) REGISTER(rc, arg_regs[0]).p )[ REGISTER(rc, arg_regs[1]).n ];
+				result = ( (Data*) iargs[0].p )[ iargs[1].n ];
 				
 				break;
 				
 			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				result = ( (Data*) REGISTER(rc, arg_regs[0]).p )[ REGISTER(rc, arg_regs[1]).n ];
+				result = ( (Data*) iargs[0].p )[ iargs[1].n ];
 				
 				break;
 			
 			default:
 				break;
 		}
+		*/
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_M_STORE:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+	L_M_STORE: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		switch(op.subop){
+		switch(instruction.subop.full){
 			case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				READ_REGISTER_ARG(arg_regs, 2, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 2, th->prog, pc_next);
 				
-				( (Data*) REGISTER(rc, arg_regs[0]).p )[ REGISTER(rc, arg_regs[2]).n ] = REGISTER(rc, arg_regs[1]);
+				( (Data*) iargs[0].p )[ iargs[2].n ] = iargs[1];
 				
 				break;
 				
 			case FORMAT1_SUBOP(SO_NONE, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				READ_CONSTANT_ARG(arg_regs, 2, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 2, th->prog, pc_next, rc, CONST_REG_0);
 				
 				#ifdef DEBUG
-				printf("\tpreparing to store to %p with offset %ld\n", REGISTER(rc, arg_regs[0]).p, REGISTER(rc, arg_regs[2]).n);
+				printf("\tpreparing to store to %p with offset %ld\n", iargs[0].p, iargs[2].n);
 				#endif
 				
-				( (Data*) REGISTER(rc, arg_regs[0]).p )[ REGISTER(rc, arg_regs[2]).n ] = REGISTER(rc, arg_regs[1]);
+				( (Data*) iargs[0].p )[ iargs[2].n ] = iargs[1];
 				
 				#ifdef DEBUG
 				printf("\tstored\n");
@@ -1094,505 +897,322 @@ void* run_thread(void* th_in){
 				break;
 				
 			case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				READ_REGISTER_ARG(arg_regs, 2, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 2, th->prog, pc_next);
 				
-				( (Data*) REGISTER(rc, arg_regs[0]).p )[ (size_t) REGISTER(rc, arg_regs[2]).n ] = REGISTER(rc, arg_regs[1]);
+				( (Data*) iargs[0].p )[ (size_t) iargs[2].n ] = iargs[1];
 				
 				break;
 				
 			case FORMAT1_SUBOP(SO_NONE, SO_CONSTANT, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				READ_CONSTANT_ARG(arg_regs, 2, th->prog, pc_next, rc, CONST_REG_1);
+				READ_CONSTANT_ARG(iargs, 2, th->prog, pc_next, rc, CONST_REG_1);
 				
-				( (Data*) REGISTER(rc, arg_regs[0]).p )[ REGISTER(rc, arg_regs[2]).n ] = REGISTER(rc, arg_regs[1]);
+				( (Data*) iargs[0].p )[ iargs[2].n ] = iargs[1];
 				
 				break;
 			
 			default:
 				break;
 		}
+		*/
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_MOD:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n % REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n % REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n % REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			default:
-				break;
-		}
+		result.n = iargs[0].n % iargs[1].n;
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_MOVE:
-		switch(op.subop){
-			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				break;
-			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				break;
-				
-			default:
-				break;
-		}
+		result = iargs[0];
 		
-		result = REGISTER(rc, arg_regs[0]);
-		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_MUL:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n * REGISTER(rc, arg_regs[1]).n;
-				
+	
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.n = iargs[0].n * iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n * REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d * REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d * REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.d = iargs[0].d * iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_NOT:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
 		
-		result.b = !(REGISTER(rc, arg_regs[0]).b);
+		result.b = !(iargs[0].b);
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_NOOP:
 		
-		#ifdef DEBUG
-		printf("\tNo-op, pc_next = %lu\n", pc_next);
-		
-		switch(op.subop){
-			case SO_NUMBER:
-				printf("\t\tnumber subop\n");
-				break;
-			case SO_HASHTABLE:
-				printf("\t\thashtable subop\n");
-				break;
-			default:
-				break;
-		}
-		#endif
-		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_OR:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
 		
-		switch(op.subop){
-			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = REGISTER(rc, arg_regs[0]).b || REGISTER(rc, arg_regs[1]).b;
+		result.b = iargs[0].b || iargs[1].b;
+		
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
+		
+	L_OUTPUT: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+	
+		switch(instruction.subop.arg_type){
+			case SO_NUMBER:
+				fprintf((FILE*) iargs[0].n, "%ld", iargs[1].n);
 				break;
 				
-			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+			case SO_RATIONAL:
+				fprintf((FILE*) iargs[0].n, "%f", iargs[1].d);
+				break;
 				
-				result.b = REGISTER(rc, arg_regs[0]).b || REGISTER(rc, arg_regs[1]).b;
+			case SO_STRING:
+				string_print(iargs[1].s, (FILE*) iargs[0].n);
+				break;
+				
+			case SO_BOOLEAN:
+				if (iargs[1].b){
+					fprintf((FILE*) iargs[0].n, "True");
+				}else{
+					fprintf((FILE*) iargs[0].n, "False");
+				}
 				break;
 			
-			default:
-				break;
+			
 		}
+	
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
-		
-	L_OUTPUT:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-		
-		switch(op.subop){
+		switch(instruction.subop.full){
 			case FORMAT2_SUBOP(SO_REGISTER, SO_NUMBER):
 			
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "%ld", REGISTER(rc, arg_regs[1]).n);
+				fprintf((FILE*) iargs[0].n, "%ld", iargs[1].n);
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_RATIONAL):
 			
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "%f", REGISTER(rc, arg_regs[1]).d);
+				fprintf((FILE*) iargs[0].n, "%f", iargs[1].d);
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_OBJECT):
 			
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "obj<%p>", REGISTER(rc, arg_regs[1]).p);
+				fprintf((FILE*) iargs[0].n, "obj<%p>", iargs[1].p);
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_STRING):
 			
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				string_print(REGISTER(rc, arg_regs[1]).s, (FILE*) REGISTER(rc, arg_regs[0]).n);
+				string_print(iargs[1].s, (FILE*) iargs[0].n);
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_THREAD):
 			
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "thr<%p>", REGISTER(rc, arg_regs[1]).t);
+				fprintf((FILE*) iargs[0].n, "thr<%p>", iargs[1].t);
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_FUNCTION):
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "fun<%p>{%d enclosed}", REGISTER(rc, arg_regs[1]).f, REGISTER(rc, arg_regs[1]).f->n_enclosed);
+				fprintf((FILE*) iargs[0].n, "fun<%p>{%d enclosed}", iargs[1].f, iargs[1].f->n_enclosed);
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_BOOLEAN):
 			
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				if (REGISTER(rc, arg_regs[1]).b){
-					fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "True");
+				if (iargs[1].b){
+					fprintf((FILE*) iargs[0].n, "True");
 				}else{
-					fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "False");
+					fprintf((FILE*) iargs[0].n, "False");
 				}
 				break;
 				
 			case FORMAT2_SUBOP(SO_REGISTER, SO_HASHTABLE):
 				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 1, th->prog, pc_next);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "htb<%p>", REGISTER(rc, arg_regs[1]).h);
+				fprintf((FILE*) iargs[0].n, "htb<%p>", iargs[1].h);
 				break;
 				
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_NUMBER):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "%ld", REGISTER(rc, arg_regs[1]).n);
+				fprintf((FILE*) iargs[0].n, "%ld", iargs[1].n);
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_RATIONAL):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "%f", REGISTER(rc, arg_regs[1]).d);
+				fprintf((FILE*) iargs[0].n, "%f", iargs[1].d);
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_OBJECT):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "obj<%p>", REGISTER(rc, arg_regs[1]).p);
+				fprintf((FILE*) iargs[0].n, "obj<%p>", iargs[1].p);
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_STRING):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "%.*s", 8, REGISTER(rc, arg_regs[1]).bytes);
+				fprintf((FILE*) iargs[0].n, "%.*s", 8, iargs[1].bytes);
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_THREAD):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "thr<%p>", REGISTER(rc, arg_regs[1]).t);
+				fprintf((FILE*) iargs[0].n, "thr<%p>", iargs[1].t);
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_FUNCTION):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "fun<%lx>", REGISTER(rc, arg_regs[1]).addr);
+				fprintf((FILE*) iargs[0].n, "fun<%lx>", iargs[1].addr);
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_BOOLEAN):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				if (REGISTER(rc, arg_regs[1]).b){
-					fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "True");
+				if (iargs[1].b){
+					fprintf((FILE*) iargs[0].n, "True");
 				}else{
-					fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "False");
+					fprintf((FILE*) iargs[0].n, "False");
 				}
 				break;
 			case FORMAT2_SUBOP(SO_CONSTANT, SO_HASHTABLE):
 				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 1, th->prog, pc_next, rc, CONST_REG_0);
 				
-				fprintf((FILE*) REGISTER(rc, arg_regs[0]).n, "htb<%p>", REGISTER(rc, arg_regs[1]).h);
+				fprintf((FILE*) iargs[0].n, "htb<%p>", iargs[1].h);
 				break;
 			
 			default:
 				break;
 		}
 		
+		*/
+		
 		#ifdef DEBUG
 		printf("\n\tprint accomplished\n");
 		#endif
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_POPFRAME:
 		pop_frame(th, &rc);
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_PUSHFRAME:
 		push_frame(th, &rc);
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_POW:
 		// Note: Power function is undefined for negative exponents
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = pow_num(REGISTER(rc, arg_regs[0]).n, REGISTER(rc, arg_regs[1]).n);
-				
+		
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.n = pow_num(iargs[0].n, iargs[1].n);
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = pow_num(REGISTER(rc, arg_regs[0]).n, REGISTER(rc, arg_regs[1]).n);
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = pow_num(REGISTER(rc, arg_regs[0]).n, REGISTER(rc, arg_regs[1]).n);
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = pow_rat(REGISTER(rc, arg_regs[0]).d, REGISTER(rc, arg_regs[1]).d);
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.d = pow_rat(REGISTER(rc, arg_regs[0]).d, REGISTER(rc, arg_regs[1]).d);
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = pow_rat(REGISTER(rc, arg_regs[0]).d, REGISTER(rc, arg_regs[1]).d);
-				
+			case SO_RATIONAL:
+				result.d = pow_rat(iargs[0].d, iargs[1].d);
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_RSH:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n >> REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n >> REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n >> REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			default:
-				break;
-		}
+	L_RSH: 
+		result.n = iargs[0].n >> iargs[1].n;
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_SUB:
-		switch(op.subop){
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n - REGISTER(rc, arg_regs[1]).n;
-				
+		
+		switch (instruction.subop.arg_type){
+			case SO_NUMBER:
+				result.n = iargs[0].n - iargs[1].n;
 				break;
 				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n - REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_NUMBER, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.n = REGISTER(rc, arg_regs[0]).n - REGISTER(rc, arg_regs[1]).n;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_REGISTER, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d - REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_REGISTER, SO_CONSTANT, SO_NONE):
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
-				
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d - REGISTER(rc, arg_regs[1]).d;
-				
-				break;
-				
-			case FORMAT1_SUBOP(SO_RATIONAL, SO_CONSTANT, SO_REGISTER, SO_NONE):
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
-				
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.d = REGISTER(rc, arg_regs[0]).d - REGISTER(rc, arg_regs[1]).d;
-				
+			case SO_RATIONAL:
+				result.d = iargs[0].d - iargs[1].d;
 				break;
 				
 			default:
 				break;
+				
 		}
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_TH_NEW:
-		switch(op.subop){
+	L_TH_NEW: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		switch(instruction.subop.full){
 			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+				READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 				
-				result.t = fork_Thread(th, REGISTER(rc, arg_regs[0]).addr);
+				result.t = fork_Thread(th, iargs[0].addr);
 				break;
 				
 			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 0, th->prog, pc_next, rc, CONST_REG_0);
+				READ_CONSTANT_ARG(iargs, 0, th->prog, pc_next, rc, CONST_REG_0);
 				
-				result.t = fork_Thread(th, REGISTER(rc, arg_regs[0]).addr);
+				result.t = fork_Thread(th, iargs[0].addr);
 				break;
 				
 			case SO_FUNCTION:
-				READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
 				
-				result.t = create_child_Thread(th, REGISTER(rc, arg_regs[0]).f->addr);
-				load_Function(REGISTER(rc, arg_regs[0]).f, &rc);
+				READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
+				
+				result.t = create_child_Thread(th, iargs[0].f->addr);
+				load_Function(iargs[0].f, &rc);
 				start_Thread(result.t);
 				
 				break;
@@ -1600,56 +1220,44 @@ void* run_thread(void* th_in){
 			default:
 				break;
 		}
+		*/
 		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_TH_JOIN:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+	L_TH_JOIN: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		if(pthread_join(REGISTER(rc, arg_regs[0]).t->tid, NULL)){
+		if(pthread_join(iargs[0].t->tid, NULL)){
 			perror("Error: Unable to join thread:");
 		}
+		*/
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
-	L_TH_KILL:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+	L_TH_KILL: // TODO: REWORK FOR NEW INSTRUCTION FORMAT
+		/*
+		READ_REGISTER_ARG(iargs, 0, th->prog, pc_next);
 		
-		REGISTER(rc, arg_regs[0]).t->status = TH_STAT_KILLED;
+		iargs[0].t->status = TH_STAT_KILLED;
 		
-		if (pthread_join(REGISTER(rc, arg_regs[0]).t->tid, NULL)){
+		if (pthread_join(iargs[0].t->tid, NULL)){
 			perror("Error: Unable to join thread\n");
 		}
+		*/
 		
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 		
 	L_XOR:
-		READ_REGISTER_ARG(arg_regs, 0, th->prog, pc_next);
+		result.b = (iargs[0].b && !iargs[1].b) || (iargs[0].b && !iargs[1].b);
 		
-		switch(op.subop){
-			case SO_REGISTER:
-				READ_REGISTER_ARG(arg_regs, 1, th->prog, pc_next);
-				
-				result.b = (REGISTER(rc, arg_regs[0]).b && !REGISTER(rc, arg_regs[1]).b) || (REGISTER(rc, arg_regs[0]).b && !REGISTER(rc, arg_regs[1]).b);
-				break;
-				
-			case SO_CONSTANT:
-				READ_CONSTANT_ARG(arg_regs, 1, th->prog, pc_next, rc, CONST_REG_0);
-				
-				result.b = (REGISTER(rc, arg_regs[0]).b && !REGISTER(rc, arg_regs[1]).b) || (REGISTER(rc, arg_regs[0]).b && !REGISTER(rc, arg_regs[1]).b);
-				break;
-			
-			default:
-				break;
-		}
-		
-		WRITE_OP_RESULT(th->prog, pc_next, rc, result);
-		LOAD_NEXT_OPCODE(pc_next, th, op);
-		JUMP_TO_NEXT_INSTRUCTION(instruction_table, op);
+		WRITE_OP_RESULT(instruction, rc, result);
+		LOAD_NEXT_INSTRUCTION(pc_next, th, rc, instruction, iargs);
+		JUMP_TO_NEXT_INSTRUCTION(instruction_table, instruction);
 	
 	L_END_OF_PROGRAM:
 	

@@ -6,6 +6,8 @@
 #include "opcodes.h"
 #include "rv_types.h"
 
+#define INSTR_SIZE 8
+
 #define FRAME_STACK_SIZE 256
 
 # define TH_STAT_TOPRETURN	-3
@@ -26,7 +28,45 @@
 #define SREG_ONE_R		6
 #define SREG_HALF_R		7
 
+#define SREG_CONST_CACHE_START	8
+#define SREG_CONST_CACHE_LAST	11
 
+#define SREG_NIL		31
+
+#define REG_VAR_START		0
+#define REG_ARG_READ_START	64
+#define REG_RET_READ_START	96
+#define REG_ARG_WRITE_START	128
+#define REG_RET_WRITE_START	160
+#define REG_GLOBAL_START	192
+#define REG_SPECIAL_START	224
+
+typedef union Subop_ {
+	byte full;
+	struct {
+		byte arg_type : 2;
+		byte arg1_const : 1;
+		byte arg2_const : 1;
+		byte opt1_const : 1;
+		byte opt2_const : 1;
+		byte opt3_const : 1;
+		byte simd : 1;
+	};
+} Subop;
+
+
+typedef union Instruction_ {
+	byte bytes[8];
+	struct {
+		byte opcode;
+		Subop subop;
+		byte args[5];
+		byte ret;
+	};
+	
+} Instruction;
+	
+	
 
 typedef struct Operation_{
 	byte opcode; // only 6 bits planned to be used

@@ -1,0 +1,28 @@
+INPUT(NUMBER), $!3 -> $0; N = input from (stdin)
+LT(NUMBER), $0, 2 -> $1
+BRANCH, $1, :FIB_ARRAY_ALLOC
+MOVE, $!6 -> $32
+JUMP, :RETURN
+:FIB_ARRAY_ALLOC
+INCR, $0 -> $1
+M_ALLOC, $1 -> $1
+M_STORE, $1, $!6, $!0
+M_STORE, $1, $!6, $!1
+MOVE, 2 -> $2
+:FIB_LOOP
+DECR, $2 -> $3
+DECR, $3 -> $4
+M_LOAD, $1, $3 -> $3
+M_LOAD, $1, $4 -> $4
+ADD(NUMBER), $3, $4 -> $3
+M_STORE, $1, $3, $2
+INCR, $2 -> $2
+EQ(NUMBER), $2, $0 -> $3
+GT(NUMBER), $2, $0 -> $4
+OR, $3, $4 -> $3
+BRANCH, $3, :FIB_LOOP
+DECR, $2 -> $2
+M_LOAD, $1, $2 -> $32
+:RETURN
+OUTPUT, $!2, $32
+HALT
