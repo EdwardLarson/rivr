@@ -1,5 +1,6 @@
 import struct
 import sys
+import io
 
 label_references = {} # label : [(line_no, pc)...]
 label_declarations = {} # label : (line_no, pc)
@@ -11,8 +12,10 @@ label_declarations = {} # label : (line_no, pc)
 
 
 SREG_NIL = 31
+SREG_CONST_CACHE_START = 8 + 224
 
 line_no = 0
+pc = 0
 
 opcode_LUT = {
 	"ABS"		: 0x00,
@@ -114,6 +117,8 @@ Adds constant values to the instruction's tail which contains constants referenc
 Returns the bit to be stored in the subop for this instruction (1 for constants, 0 for registers)
 """
 def parse_argument(arg, arg_reg_bytes, instruction_tail, local_label_references):
+	global pc
+	
 	if arg[0] == '$': #register
 		reg_arg = get_literal_register(arg[1:])
 		
@@ -123,19 +128,22 @@ def parse_argument(arg, arg_reg_bytes, instruction_tail, local_label_references)
 		
 	elif arg[0] == ':': #label reference
 		label_name = arg[1:].strip()
+		
+		"""
 		if label_name in local_label_references:
 			local_label_references[label_name].append(len(instruction_tail))
 		else:
 			local_label_references[label_name] = [len(instruction_tail)]
-			
-		instruction_tail.append(struct.pack("=Q", 0))
+			"""
+		arg_reg_bytes.append(struct.pack("=B", SREG_CONST_CACHE_START + len(arg_reg_bytes)))
+		instruction_tail.append( (None, label_name) )
 		
 		return 1 # for now let all label usages be absolute addressed jumps
 		
 	elif arg[0] == '"': # String constant
 		str_const = arg[1:-2]
 		
-		arg_reg_bytes.append(struct.pack("=B", SREG_NIL))
+		arg_reg_bytes.append(struct.pack("=B", SREG_CONST_CACHE_START + len(arg_reg_bytes)))
 		instruction_tail.append(str_const)
 		
 		return 1
@@ -143,29 +151,29 @@ def parse_argument(arg, arg_reg_bytes, instruction_tail, local_label_references)
 	elif str_is_int(arg): # Number constant
 		num_const = int(arg)
 		
-		arg_reg_bytes.append(struct.pack("=B", SREG_NIL))
+		arg_reg_bytes.append(struct.pack("=B", SREG_CONST_CACHE_START + len(arg_reg_bytes)))
 		instruction_tail.append(struct.pack("=q", num_const))
 		
-		print "-- line {} found num constant {}".format(line_no, num_const)
+		print "-- line {} found num constant {}, gave it register {}".format(line_no, num_const, ord(arg_reg_bytes[-1]))
 		
 		return 1
 		
 	elif str_is_float(arg): # Rational constant
 		rat_const = float(arg)
 		
-		arg_reg_bytes.append(struct.pack("=B", SREG_NIL))
+		arg_reg_bytes.append(struct.pack("=B", SREG_CONST_CACHE_START + len(arg_reg_bytes)))
 		instruction_tail.append(struct.pack("=d", rat_const))
 		
 		return 1
 		
 	elif arg == "True": # Boolean constant (True)
-		arg_reg_bytes.append(struct.pack("=B", SREG_NIL))
+		arg_reg_bytes.append(struct.pack("=B", SREG_CONST_CACHE_START + len(arg_reg_bytes)))
 		instruction_tail.append(struct.pack("=B", 1))
 		
 		return 1
 		
 	elif arg == "False": # Boolean constant (False)
-		arg_reg_bytes.append(struct.pack("=B", SREG_NIL))
+		arg_reg_bytes.append(struct.pack("=B", SREG_CONST_CACHE_START + len(arg_reg_bytes)))
 		instruction_tail.append(struct.pack("=B", 0))
 		
 		return 1
@@ -189,7 +197,9 @@ def parse_opcode(opcode):
 	else:
 		return opcode_LUT[opcode], 0x0
 		
-def parse_instruction(line, outstream):
+def parse_instruction(line, byte_queue):
+	global pc
+	
 	instr_and_return = [item.strip() for item in line.split("->")]
 	
 	has_return = len(instr_and_return) > 1
@@ -244,19 +254,39 @@ def parse_instruction(line, outstream):
 	subop_byte = struct.pack("=B", subop)
 	ret_reg_byte = struct.pack("=B", ret_reg)
 	
-	print "\t\tline {}: opcode = {!r}; subop = {!r}; pc = {}".format(line_no, opcode_byte, subop_byte, outstream.tell())
+	print "\t\tline {}: opcode = {!r}; subop = {!r}; pc = {}".format(line_no, opcode_byte, subop_byte, pc)
 	
-	outstream.write(opcode_byte) # somehow this gets overwritten?
-	outstream.write(subop_byte)
+	byte_queue.append(opcode_byte)
+	byte_queue.append(subop_byte)
+	pc += 2
 	
 	for arg_reg in arg_reg_bytes:
-		outstream.write(arg_reg)
+		byte_queue.append(arg_reg)
+		pc += 1
 		
-	outstream.write(ret_reg_byte)
+	byte_queue.append(ret_reg_byte)
+	pc += 1
 	
 	for constant in instruction_tail:
-		print "-- outputting constant {!r} with length {} at {}".format(constant , len(constant), outstream.tell())
-		outstream.write(constant)
+		if type(constant) == tuple: # flags a reference!
+			# add a reference at this offset to the label
+			label = constant[1]
+			
+			print "-- placing label ref {} at {}".format(label, pc)
+			
+			if label in label_references:
+				label_references[label].append(len(byte_queue))
+				
+			else:
+				label_references[label] = [len(byte_queue)]
+				
+			byte_queue.append(label)
+			pc += 8
+				
+		else:
+			print "-- outputting constant {!r} with length {} at {}".format(constant , len(constant), pc)
+			byte_queue.append(constant)
+			pc += len(constant)
 	
 	
 if __name__ == "__main__":
@@ -266,48 +296,55 @@ if __name__ == "__main__":
 	
 	
 	with open(assembly_in, "r") as f:
-		with open (bytecode_out, "w+b") as out:
-		#with sys.stdout as out:
-			# first pass, 3 things happen:
-			# 1. Instructions turn themselves and args into bytecode, write that to an output string
-			# 2. Label references are written as 0s, but the location is recorded
-			# 3. Label declarations: label_declarations[label] = output_i
+		
+		# first pass, 3 things happen:
+		# 1. Instructions turn themselves and args into bytecode, write that to an output string
+		# 2. Label references are written as 0s, but the location is recorded
+		# 3. Label declarations: label_declarations[label] = output_i
+		
+		out_queue = []
 
-			for instruction_line in f:
-				line_no += 1
-				
-				instruction_line = instruction_line.split(';')[0] # discard comments after ';'
-				
-				if len(instruction_line) == 0:
-					continue
-				
-				if instruction_line[0] == ':':
-					# label
-					label = instruction_line[1:].strip()
-					
-					if label in label_declarations:
-						#error! multiple labels
-						print "ERROR line {}: Multiple declarations for label {}: Declared line {} and line {}".format(
-							line_no, label, label_declarations[label][0], line_no)
-						exit()
-					else:
-						label_declarations[label] = out.tell()
-						
-				else:
-					# instruction
-					parse_instruction(instruction_line, out)
-					
-			# second pass: fill in labels
-			# for label, refs in label_references.iteritems(): for ref in refs: output[ref] = label_declarations[label]
+		for instruction_line in f:
+			line_no += 1
 			
-			for label, references in label_references.iteritems():
+			instruction_line = instruction_line.split(';')[0].strip() # discard comments after ';'
+			
+			if len(instruction_line) == 0:
+				continue
+			
+			if instruction_line[0] == ':':
+				# label
+				label = instruction_line[1:].strip()
+				
 				if label in label_declarations:
-					label_loc = struct.pack("=Q", label_declarations[label])
-					
-					for ref in references:
-						print "-- overwriting reference at {} with {}".format(ref, label_loc)
-						out.seek(ref)
-						out.write(label_loc)
-					
+					#error! multiple labels
+					print "ERROR line {}: Multiple declarations for label {}: Declared line {} and line {}".format(
+						line_no, label, label_declarations[label][0], line_no)
+					exit()
 				else:
-					print "ERROR: Label {} undeclared!".format(label)
+					label_declarations[label] = pc
+					
+			else:
+				# instruction
+				parse_instruction(instruction_line, out_queue)
+			
+		# second pass: fill in labels
+		# for label, refs in label_references.iteritems(): for ref in refs: output[ref] = label_declarations[label]
+		
+		for label, references in label_references.iteritems():
+			if label in label_declarations:
+				label_loc = struct.pack("=Q", label_declarations[label])
+				
+				for ref in references:
+					print "-- overwriting {} reference at {} with {} (was {})".format(label, ref, label_loc, out_queue[ref])
+					out_queue[ref] = label_loc
+				
+			else:
+				print "ERROR: Label {} undeclared!".format(label)
+				
+			
+		with open (bytecode_out, "wb") as out:
+			for chunk in out_queue:
+				out.write(chunk)
+				
+			print "Output size: {} bytes".format(out.tell())

@@ -12,6 +12,16 @@ ifeq ($(PROFILER), yes)
 CFLAGS += -pg
 endif
 
+OPTIMIZE=no
+ifeq ($(OPTIMIZE), yes)
+CFLAGS += -O2
+endif
+
+AGGRESSIVE_OPT=no
+ifeq ($(AGGRESSIVE_OPT), yes)
+CFLAGS += -O3
+endif
+
 ODIR=obj
 
 _DEPS = keywords.h opcodes.h parser.h rv_functions.h rv_strings.h rv_types.h vm.h version.h
